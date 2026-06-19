@@ -22,6 +22,29 @@ const PROG_ID  = new PublicKey("HxoYg9RGSK4J7bbFkuUuPXiJqonKD9g5Dx6FiaBSVpob");
 
 function log(msg: string) { console.log(`[${new Date().toISOString()}] ${msg}`); }
 
+function sleep(ms: number) { return new Promise(r => setTimeout(r, ms)); }
+
+// Retry wrapper — handles transient 503/429 from public devnet RPC
+async function withRetry<T>(fn: () => Promise<T>, attempts = 8, baseMs = 3_000): Promise<T> {
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      const transient = ["503", "429", "Service Unavailable", "Too Many Requests",
+        "Connection rate limits", "socket hang up", "ECONNRESET", "ETIMEDOUT"];
+      if (transient.some(t => msg.includes(t)) && i < attempts - 1) {
+        const wait = baseMs * Math.pow(1.8, i);
+        log(`⚠️  RPC hiccup (attempt ${i+1}/${attempts}), retrying in ${Math.round(wait/1000)}s…`);
+        await sleep(wait);
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error("unreachable");
+}
+
 function deriveWinnerIndex(slotHash: Buffer, roundId: bigint, ticketCount: bigint): bigint {
   const rid = Buffer.alloc(8); rid.writeBigUInt64LE(roundId);
   const tc  = Buffer.alloc(8); tc.writeBigUInt64LE(ticketCount);
@@ -68,7 +91,7 @@ async function main() {
 
   const [configPDA] = PublicKey.findProgramAddressSync([Buffer.from("lottery_config")], PROG_ID);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const cfg       = await (program.account as any).lotteryConfig.fetch(configPDA);
+  const cfg       = await withRetry(() => (program.account as any).lotteryConfig.fetch(configPDA));
   const roundId   = BigInt(cfg.currentRoundId.toString());
   const treasury: PublicKey = cfg.treasury;
 
@@ -77,7 +100,7 @@ async function main() {
   const roundBuf = Buffer.alloc(8); roundBuf.writeBigUInt64LE(roundId);
   const [statePDA] = PublicKey.findProgramAddressSync([Buffer.from("lottery"), roundBuf], PROG_ID);
 
-  const stateInfo = await connection.getAccountInfo(statePDA);
+  const stateInfo = await withRetry(() => connection.getAccountInfo(statePDA));
   if (!stateInfo) {
     log("Round not open — opening...");
     await openRound(program, authority, configPDA, statePDA, roundId);
@@ -85,11 +108,11 @@ async function main() {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const state      = await (program.account as any).lotteryState.fetch(statePDA);
+  const state      = await withRetry(() => (program.account as any).lotteryState.fetch(statePDA));
   const status     = Number(state.status);
   const endSlot    = BigInt(state.endSlot.toString());
   const tickets    = BigInt(state.ticketCount.toString());
-  const currentSlot = BigInt(await connection.getSlot("confirmed"));
+  const currentSlot = BigInt(await withRetry(() => connection.getSlot("confirmed")));
 
   log(`status=${status}  tickets=${tickets}  end=${endSlot}  now=${currentSlot}`);
 
@@ -123,9 +146,9 @@ async function main() {
     const [dvPDA] = PublicKey.findProgramAddressSync(
       [Buffer.from("draw_vote"), roundBuf, authority.publicKey.toBuffer()], PROG_ID
     );
-    if (await connection.getAccountInfo(dvPDA)) { log("Already voted"); }
+    if (await withRetry(() => connection.getAccountInfo(dvPDA))) { log("Already voted"); }
     else {
-      const shInfo = await connection.getAccountInfo(SYSVAR_SLOT_HASHES_PUBKEY);
+      const shInfo = await withRetry(() => connection.getAccountInfo(SYSVAR_SLOT_HASHES_PUBKEY));
       if (!shInfo) throw new Error("SlotHashes unreadable");
       const hash  = readSlotHash(Buffer.from(shInfo.data), endSlot);
       const wIdx  = deriveWinnerIndex(hash, roundId, tickets);
@@ -180,7 +203,7 @@ async function openRound(
   statePDA: PublicKey,
   roundId: bigint,
 ) {
-  if (await program.provider.connection.getAccountInfo(statePDA)) {
+  if (await withRetry(() => program.provider.connection.getAccountInfo(statePDA))) {
     log(`Round #${roundId} already open`);
     return;
   }
