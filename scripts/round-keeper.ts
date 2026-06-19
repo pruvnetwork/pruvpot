@@ -202,4 +202,15 @@ async function openRound(
   }
 }
 
-main().catch(err => { log(`Fatal: ${err}`); process.exit(1); });
+main().catch(err => {
+  const msg = err instanceof Error ? err.message : String(err);
+  // Transient RPC errors — don't fail the CI run, retry on next cron tick
+  const transient = ["503", "429", "Service Unavailable", "Too Many Requests",
+    "Connection rate limits", "TransactionExpiredTimeoutError", "was not confirmed"];
+  if (transient.some(t => msg.includes(t))) {
+    log(`⚠️  Transient RPC error (will retry next run): ${msg.slice(0, 120)}`);
+    process.exit(0);
+  }
+  log(`Fatal: ${err}`);
+  process.exit(1);
+});
