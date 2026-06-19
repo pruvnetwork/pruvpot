@@ -13,7 +13,7 @@ import { getLotteryProgram, PROGRAM_ID, getConfigPDA, getLotteryStatePDA, u64LE 
 import IDL from "@/lib/idl/pruv_lottery.json";
 
 const RPC = process.env.NEXT_PUBLIC_RPC_URL ?? "https://api.devnet.solana.com";
-const OPERATOR = "Ddk15nuwaK3HZ8evHSwN93n1n3Xk4Gr8mt4fYN5TE1s1";
+const OPERATOR = "6kacXz5Yb5X2RcsSt8GasPwdj3EfLGHJHy9YH7JLYPTP";
 const NODE_KEY  = "pruv-node-2024";
 
 function fmtSol(lamports: bigint | number) {
