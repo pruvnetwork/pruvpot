@@ -17,7 +17,7 @@ export function getLotteryProgram(wallet: AnchorWallet, connection?: Connection)
 
 // PDA helpers
 export function getConfigPDA(): [PublicKey, number] {
-  return PublicKey.findProgramAddressSync([Buffer.from("config")], PROGRAM_ID);
+  return PublicKey.findProgramAddressSync([Buffer.from("lottery_config")], PROGRAM_ID);
 }
 
 export function getLotteryStatePDA(roundId: bigint): [PublicKey, number] {
