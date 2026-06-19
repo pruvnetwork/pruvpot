@@ -75,7 +75,7 @@ async function main() {
   const bytes = Buffer.from(raw, "base64");
   const authority = Keypair.fromSecretKey(Uint8Array.from(JSON.parse(bytes.toString())));
 
-  log(`Authority: ${authority.publicKey.toBase58()}`);
+  log(`Node-operator: ${authority.publicKey.toBase58()}`);
 
   const connection = new Connection(RPC, {
     commitment: "confirmed",
