@@ -54,9 +54,15 @@ async function main() {
 
   log(`Authority: ${authority.publicKey.toBase58()}`);
 
-  const connection = new Connection(RPC, "confirmed");
+  const connection = new Connection(RPC, {
+    commitment: "confirmed",
+    confirmTransactionInitialTimeout: 90_000, // 90s instead of 30s default
+  });
   const wallet     = new anchor.Wallet(authority);
-  const provider   = new anchor.AnchorProvider(connection, wallet, { commitment: "confirmed" });
+  const provider   = new anchor.AnchorProvider(connection, wallet, {
+    commitment: "confirmed",
+    preflightCommitment: "processed",
+  });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const program    = new anchor.Program(IDL as any, provider);
 
@@ -124,13 +130,22 @@ async function main() {
       const hash  = readSlotHash(Buffer.from(shInfo.data), endSlot);
       const wIdx  = deriveWinnerIndex(hash, roundId, tickets);
       log(`Winner index: ${wIdx}`);
-      const sig: string = await (program.methods as any)
-        .castDrawVote(new anchor.BN(roundId.toString()), new anchor.BN(wIdx.toString()))
-        .accounts({ config: configPDA, lotteryState: statePDA, drawVote: dvPDA,
-          slotHashes: SYSVAR_SLOT_HASHES_PUBKEY, nodeOperator: authority.publicKey,
-          systemProgram: SystemProgram.programId })
-        .signers([authority]).rpc();
-      log(`✅ cast_draw_vote: ${sig}`);
+      try {
+        const sig: string = await (program.methods as any)
+          .castDrawVote(new anchor.BN(roundId.toString()), new anchor.BN(wIdx.toString()))
+          .accounts({ config: configPDA, lotteryState: statePDA, drawVote: dvPDA,
+            slotHashes: SYSVAR_SLOT_HASHES_PUBKEY, nodeOperator: authority.publicKey,
+            systemProgram: SystemProgram.programId })
+          .signers([authority]).rpc({ skipPreflight: false, maxRetries: 3 });
+        log(`✅ cast_draw_vote: ${sig}`);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes("TransactionExpiredTimeoutError") || msg.includes("was not confirmed")) {
+          log(`⚠️  cast_draw_vote timeout — tx may have landed; next run will verify`);
+          return;
+        }
+        throw err;
+      }
     }
     return; // finalize on next run (status will be 1 after vote)
   }
@@ -152,7 +167,7 @@ async function main() {
       .accounts({ config: configPDA, lotteryState: statePDA, winnerTicket: wtPDA,
         winnerWallet: ticket.buyer, nodePrizePool: npPDA, treasury,
         caller: authority.publicKey, systemProgram: SystemProgram.programId })
-      .signers([authority]).rpc();
+      .signers([authority]).rpc({ skipPreflight: false, maxRetries: 3 });
     log(`✅ finalize_draw: ${sig} — winner: ${ticket.buyer.toBase58()}`);
   }
 }
@@ -169,12 +184,22 @@ async function openRound(
     log(`Round #${roundId} already open`);
     return;
   }
-  const sig: string = await (program.methods as any)
-    .initializeRound(new anchor.BN(roundId.toString()))
-    .accounts({ config: configPDA, lotteryState: statePDA,
-      payer: authority.publicKey, systemProgram: SystemProgram.programId })
-    .signers([authority]).rpc();
-  log(`✅ initialize_round #${roundId}: ${sig}`);
+  try {
+    const sig: string = await (program.methods as any)
+      .initializeRound(new anchor.BN(roundId.toString()))
+      .accounts({ config: configPDA, lotteryState: statePDA,
+        payer: authority.publicKey, systemProgram: SystemProgram.programId })
+      .signers([authority]).rpc({ skipPreflight: false, maxRetries: 3 });
+    log(`✅ initialize_round #${roundId}: ${sig}`);
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : String(err);
+    // Timeout doesn't mean failure — the tx may have landed. Next run will confirm.
+    if (msg.includes("TransactionExpiredTimeoutError") || msg.includes("was not confirmed")) {
+      log(`⚠️  initialize_round timeout — tx may have landed; next run will verify`);
+      return;
+    }
+    throw err;
+  }
 }
 
 main().catch(err => { log(`Fatal: ${err}`); process.exit(1); });
