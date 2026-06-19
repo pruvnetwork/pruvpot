@@ -16,13 +16,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
-          cache: "npm"
 
       - name: Install dependencies
-        run: npm ci
+        run: npm install --no-save ts-node typescript @coral-xyz/anchor @solana/web3.js tweetnacl
 
       - name: Run round-keeper
         env:
           SOLANA_KEYPAIR: ${{ secrets.SOLANA_KEYPAIR }}
           RPC_URL: ${{ secrets.RPC_URL }}
-        run: npx ts-node --compiler-options '{"module":"commonjs","esModuleInterop":true}' scripts/round-keeper.ts
+        run: npx ts-node --compiler-options '{"module":"commonjs","esModuleInterop":true,"resolveJsonModule":true}' scripts/round-keeper.ts
