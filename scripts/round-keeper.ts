@@ -91,7 +91,7 @@ async function main() {
 
   const [configPDA] = PublicKey.findProgramAddressSync([Buffer.from("lottery_config")], PROG_ID);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const cfg       = await withRetry(() => (program.account as any).lotteryConfig.fetch(configPDA));
+  const cfg: any  = await withRetry(() => (program.account as any).lotteryConfig.fetch(configPDA));
   const roundId   = BigInt(cfg.currentRoundId.toString());
   const treasury: PublicKey = cfg.treasury;
 
@@ -108,7 +108,7 @@ async function main() {
   }
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const state      = await withRetry(() => (program.account as any).lotteryState.fetch(statePDA));
+  const state: any = await withRetry(() => (program.account as any).lotteryState.fetch(statePDA));
   const status     = Number(state.status);
   const endSlot    = BigInt(state.endSlot.toString());
   const tickets    = BigInt(state.ticketCount.toString());
@@ -181,7 +181,8 @@ async function main() {
       [Buffer.from("ticket"), roundBuf, ib], PROG_ID
     );
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const ticket = await (program.account as any).ticket.fetch(wtPDA);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const ticket: any = await withRetry(() => (program.account as any).ticket.fetch(wtPDA));
     const [npPDA] = PublicKey.findProgramAddressSync(
       [Buffer.from("node_prizes"), roundBuf], PROG_ID
     );
