@@ -191,6 +191,9 @@ export default function AdminPage() {
   const { connection } = useConnection();
   const anchorWallet = useAnchorWallet();
 
+  const [newTreasury, setNewTreasury] = useState("");
+  const [newAuthority, setNewAuthority] = useState("");
+
   const { round, loading: roundLoading } = useLotteryState();
   const votes = useDrawVotes(round?.roundId ?? null);
   const events = useOnChainEvents(30);
@@ -230,6 +233,30 @@ export default function AdminPage() {
         .accounts({ config: configPDA, authority: publicKey })
         .rpc({ commitment: "confirmed" });
       toast(`Node count synced · ${sig.slice(0, 8)}…`, "success");
+    } catch (e) {
+      toast(e instanceof Error ? e.message.slice(0, 80) : "TX failed", "error");
+    }
+  }
+
+  async function handleUpdateConfig() {
+    if (!canSign) { toast("Connect authority wallet", "error"); return; }
+    let tPubkey: PublicKey | null = null;
+    let aPubkey: PublicKey | null = null;
+    try {
+      if (newTreasury.trim()) tPubkey = new PublicKey(newTreasury.trim());
+      if (newAuthority.trim()) aPubkey = new PublicKey(newAuthority.trim());
+    } catch { toast("Invalid pubkey", "error"); return; }
+    if (!tPubkey && !aPubkey) { toast("Enter at least one address to update", "error"); return; }
+    try {
+      const program = getLotteryProgram(anchorWallet, connection);
+      const [configPDA] = getConfigPDA();
+      const sig = await (program.methods as any)
+        .updateConfig(tPubkey ?? null, aPubkey ?? null, null, null)
+        .accounts({ config: configPDA, authority: publicKey })
+        .rpc({ commitment: "confirmed" });
+      toast(`Config updated · ${sig.slice(0, 8)}…`, "success");
+      setNewTreasury("");
+      setNewAuthority("");
     } catch (e) {
       toast(e instanceof Error ? e.message.slice(0, 80) : "TX failed", "error");
     }
@@ -360,18 +387,49 @@ export default function AdminPage() {
           {/* Config Controls */}
           <Section title="Config Instructions" icon="⚙">
             <IxButton
-              label="init_config · Initialize program"
-              description="One-time setup — already initialized on devnet"
-              variant="danger"
-              disabled
-              onClick={async () => {}}
-            />
-            <IxButton
               label="update_node_count · Sync operators"
               description={`Current: ${cfg?.activeNodeCount ?? "?"} nodes — updates threshold for draw votes`}
               disabled={!canSign}
               onClick={handleUpdateNodeCount}
             />
+
+            {/* update_config: rotate treasury / authority */}
+            <div className="p-4 bg-zinc-800/40 rounded-xl space-y-3">
+              <div>
+                <p className="text-sm font-semibold text-zinc-200">update_config · Rotate wallets</p>
+                <p className="text-xs text-zinc-500 mt-0.5">Set new treasury and/or authority address — leave blank to keep current</p>
+              </div>
+              <div className="space-y-2">
+                <div>
+                  <label className="text-xs text-zinc-500 block mb-1">New treasury</label>
+                  <input
+                    value={newTreasury}
+                    onChange={e => setNewTreasury(e.target.value)}
+                    placeholder={cfg?.treasury.slice(0,8) + "… (current)"}
+                    className="w-full bg-zinc-900 border border-zinc-700 focus:border-violet-600 rounded-lg px-3 py-2 text-xs font-mono text-white placeholder:text-zinc-700 outline-none transition-colors"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-zinc-500 block mb-1">New authority</label>
+                  <input
+                    value={newAuthority}
+                    onChange={e => setNewAuthority(e.target.value)}
+                    placeholder={cfg?.authority.slice(0,8) + "… (current)"}
+                    className="w-full bg-zinc-900 border border-zinc-700 focus:border-yellow-600 rounded-lg px-3 py-2 text-xs font-mono text-white placeholder:text-zinc-700 outline-none transition-colors"
+                  />
+                  {newAuthority && (
+                    <p className="text-xs text-yellow-600 mt-1">⚠️ Rotating authority locks you out of admin panel with current wallet</p>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={handleUpdateConfig}
+                disabled={!canSign || (!newTreasury.trim() && !newAuthority.trim())}
+                className="w-full py-2 rounded-lg text-xs font-semibold transition-all bg-violet-700 hover:bg-violet-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white"
+              >
+                Send update_config TX
+              </button>
+            </div>
 
             {/* BPS display (read-only — no on-chain update_bps instruction) */}
             {cfg && (
