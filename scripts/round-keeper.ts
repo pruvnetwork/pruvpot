@@ -17,7 +17,7 @@ import {
 } from "@solana/web3.js";
 import IDL from "../lib/idl/pruv_lottery.json";
 
-const RPC      = process.env.RPC_URL ?? "https://api.devnet.solana.com";
+const RPC      = process.env.RPC_URL || "https://api.devnet.solana.com";
 const PROG_ID  = new PublicKey("HxoYg9RGSK4J7bbFkuUuPXiJqonKD9g5Dx6FiaBSVpob");
 
 function log(msg: string) { console.log(`[${new Date().toISOString()}] ${msg}`); }
