@@ -1,8 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { useWallet, useConnection } from "@solana/wallet-adapter-react";
-import { Transaction, SystemProgram, PublicKey, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { useWallet, useConnection, useAnchorWallet } from "@solana/wallet-adapter-react";
 import AttestationBadge from "@/components/AttestationBadge";
 import NodeConsensus from "@/components/NodeConsensus";
 import PrizePool from "@/components/PrizePool";
@@ -28,9 +27,7 @@ import {
 } from "@/lib/mock";
 import { formatCountdown } from "@/lib/utils";
 import type { LotteryRoundState, DrawVoteInfo } from "@/lib/types";
-
-// TODO (post-deploy): replace with real treasury PDA derived from lottery program
-const TREASURY_PUBKEY = new PublicKey("11111111111111111111111111111111");
+import { buyTicket } from "@/lib/lottery-client";
 
 export default function Home() {
   const [round, setRound] = useState<LotteryRoundState | null>(null);
@@ -79,36 +76,18 @@ export default function Home() {
     }
   }, [winner]);
 
-  const { publicKey, sendTransaction, connected } = useWallet();
+  const { connected } = useWallet();
   const { connection } = useConnection();
+  const anchorWallet = useAnchorWallet();
 
   const handleBuy = useCallback(async () => {
-    if (!publicKey || !connected) throw new Error("Wallet not connected");
+    if (!anchorWallet || !connected || !round) throw new Error("Wallet not connected");
 
-    // TODO (post-deploy): replace with Anchor buy_ticket instruction:
-    // const sig = await program.methods
-    //   .buyTicket(new BN(round.roundId.toString()))
-    //   .accounts({ round: roundPda, buyer: publicKey, systemProgram: SystemProgram.programId })
-    //   .rpc();
+    const ticketIndex = BigInt(round.ticketCount.toString());
+    await buyTicket(anchorWallet, connection, BigInt(round.roundId.toString()), ticketIndex);
 
-    // Placeholder: SOL transfer proving the signing flow works end-to-end
-    const tx = new Transaction().add(
-      SystemProgram.transfer({
-        fromPubkey: publicKey,
-        toPubkey: TREASURY_PUBKEY,
-        lamports: 0.01 * LAMPORTS_PER_SOL,
-      })
-    );
-
-    const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-    tx.recentBlockhash = blockhash;
-    tx.feePayer = publicKey;
-
-    const sig = await sendTransaction(tx, connection);
-    await connection.confirmTransaction({ signature: sig, blockhash, lastValidBlockHeight }, "confirmed");
-
-    addTicket(); // optimistic UI update until real program state
-  }, [publicKey, connected, sendTransaction, connection]);
+    addTicket(); // optimistic UI update
+  }, [anchorWallet, connected, connection, round]);
 
   if (!round) return (
     <div className="max-w-5xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-3 gap-5 lg:items-start">

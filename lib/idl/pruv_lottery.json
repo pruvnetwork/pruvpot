@@ -1,0 +1,1301 @@
+{
+  "address": "HxoYg9RGSK4J7bbFkuUuPXiJqonKD9g5Dx6FiaBSVpob",
+  "metadata": {
+    "name": "pruv_lottery",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "pruv daily lottery — node-consensus randomness, on-chain prize distribution"
+  },
+  "instructions": [
+    {
+      "name": "buy_ticket",
+      "docs": [
+        "`ticket_index` must equal `lottery_state.ticket_count` at call time."
+      ],
+      "discriminator": [
+        11,
+        24,
+        17,
+        193,
+        168,
+        116,
+        164,
+        169
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "lottery_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "round_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "ticket",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  105,
+                  99,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "round_id"
+              },
+              {
+                "kind": "arg",
+                "path": "ticket_index"
+              }
+            ]
+          }
+        },
+        {
+          "name": "wallet_count",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  119,
+                  97,
+                  108,
+                  108,
+                  101,
+                  116,
+                  95,
+                  116,
+                  105,
+                  99,
+                  107,
+                  101,
+                  116,
+                  115
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "round_id"
+              },
+              {
+                "kind": "account",
+                "path": "buyer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "buyer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "_round_id",
+          "type": "u64"
+        },
+        {
+          "name": "ticket_index",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "cast_draw_vote",
+      "docs": [
+        "Node calls this after `end_slot` passes. Program re-derives `winner_index`",
+        "from SlotHashes; tx is rejected if node's value differs."
+      ],
+      "discriminator": [
+        99,
+        123,
+        255,
+        171,
+        152,
+        64,
+        234,
+        107
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "lottery_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "round_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "draw_vote",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  114,
+                  97,
+                  119,
+                  95,
+                  118,
+                  111,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "round_id"
+              },
+              {
+                "kind": "account",
+                "path": "node_operator"
+              }
+            ]
+          }
+        },
+        {
+          "name": "slot_hashes",
+          "address": "SysvarS1otHashes111111111111111111111111111"
+        },
+        {
+          "name": "node_operator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "_round_id",
+          "type": "u64"
+        },
+        {
+          "name": "winner_index",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "claim_node_prize",
+      "discriminator": [
+        135,
+        112,
+        26,
+        254,
+        235,
+        129,
+        4,
+        84
+      ],
+      "accounts": [
+        {
+          "name": "draw_vote",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  114,
+                  97,
+                  119,
+                  95,
+                  118,
+                  111,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "round_id"
+              },
+              {
+                "kind": "account",
+                "path": "node_operator"
+              }
+            ]
+          }
+        },
+        {
+          "name": "node_prize_pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  111,
+                  100,
+                  101,
+                  95,
+                  112,
+                  114,
+                  105,
+                  122,
+                  101,
+                  115
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "round_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "node_operator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "_round_id",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "finalize_draw",
+      "discriminator": [
+        112,
+        9,
+        234,
+        94,
+        99,
+        176,
+        12,
+        181
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "lottery_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "round_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "winner_ticket",
+          "docs": [
+            "Winner's Ticket PDA — proves wallet address for the winning index."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  116,
+                  105,
+                  99,
+                  107,
+                  101,
+                  116
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "round_id"
+              },
+              {
+                "kind": "account",
+                "path": "lottery_state.committed_winner_index",
+                "account": "LotteryState"
+              }
+            ]
+          }
+        },
+        {
+          "name": "winner_wallet",
+          "writable": true
+        },
+        {
+          "name": "node_prize_pool",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  111,
+                  100,
+                  101,
+                  95,
+                  112,
+                  114,
+                  105,
+                  122,
+                  101,
+                  115
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "round_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "treasury",
+          "writable": true
+        },
+        {
+          "name": "caller",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "round_id",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "init_config",
+      "discriminator": [
+        23,
+        235,
+        115,
+        232,
+        168,
+        96,
+        1,
+        231
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "treasury"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "ticket_price_lamports",
+          "type": "u64"
+        },
+        {
+          "name": "max_tickets_per_wallet",
+          "type": "u8"
+        },
+        {
+          "name": "round_duration_slots",
+          "type": "u64"
+        },
+        {
+          "name": "node_share_bps",
+          "type": "u16"
+        },
+        {
+          "name": "treasury_share_bps",
+          "type": "u16"
+        },
+        {
+          "name": "threshold_bps",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "initialize_round",
+      "docs": [
+        "Client reads `config.current_round_id`, adds 1, passes as `next_round_id`."
+      ],
+      "discriminator": [
+        43,
+        135,
+        19,
+        93,
+        14,
+        225,
+        131,
+        188
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "lottery_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "next_round_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "payer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "next_round_id",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "update_node_count",
+      "discriminator": [
+        172,
+        38,
+        139,
+        55,
+        2,
+        94,
+        20,
+        45
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "new_count",
+          "type": "u32"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "DrawVote",
+      "discriminator": [
+        120,
+        37,
+        90,
+        181,
+        89,
+        213,
+        219,
+        80
+      ]
+    },
+    {
+      "name": "LotteryConfig",
+      "discriminator": [
+        174,
+        54,
+        184,
+        175,
+        81,
+        20,
+        237,
+        24
+      ]
+    },
+    {
+      "name": "LotteryState",
+      "discriminator": [
+        196,
+        210,
+        202,
+        219,
+        204,
+        63,
+        133,
+        85
+      ]
+    },
+    {
+      "name": "NodePrizePool",
+      "discriminator": [
+        3,
+        38,
+        189,
+        204,
+        84,
+        89,
+        74,
+        28
+      ]
+    },
+    {
+      "name": "Ticket",
+      "discriminator": [
+        41,
+        228,
+        24,
+        165,
+        78,
+        90,
+        235,
+        200
+      ]
+    },
+    {
+      "name": "WalletTicketCount",
+      "discriminator": [
+        219,
+        182,
+        134,
+        162,
+        244,
+        214,
+        148,
+        121
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "DrawVoteCast",
+      "discriminator": [
+        81,
+        171,
+        255,
+        241,
+        149,
+        71,
+        84,
+        58
+      ]
+    },
+    {
+      "name": "NodePrizeClaimed",
+      "discriminator": [
+        43,
+        164,
+        6,
+        15,
+        218,
+        140,
+        115,
+        70
+      ]
+    },
+    {
+      "name": "RoundFinalized",
+      "discriminator": [
+        43,
+        187,
+        17,
+        193,
+        36,
+        241,
+        48,
+        82
+      ]
+    },
+    {
+      "name": "RoundOpened",
+      "discriminator": [
+        99,
+        173,
+        228,
+        72,
+        142,
+        57,
+        109,
+        178
+      ]
+    },
+    {
+      "name": "TicketPurchased",
+      "discriminator": [
+        108,
+        59,
+        246,
+        95,
+        84,
+        145,
+        13,
+        71
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "RoundNotOpen",
+      "msg": "Round is not open"
+    },
+    {
+      "code": 6001,
+      "name": "RoundEnded",
+      "msg": "Round end slot has passed"
+    },
+    {
+      "code": 6002,
+      "name": "RoundNotEnded",
+      "msg": "Round end slot not yet reached"
+    },
+    {
+      "code": 6003,
+      "name": "RoundNotCommitting",
+      "msg": "Round not in Committing state"
+    },
+    {
+      "code": 6004,
+      "name": "InvalidTicketIndex",
+      "msg": "ticket_index must equal ticket_count"
+    },
+    {
+      "code": 6005,
+      "name": "MaxTicketsExceeded",
+      "msg": "Max tickets per wallet reached"
+    },
+    {
+      "code": 6006,
+      "name": "NoTicketsSold",
+      "msg": "No tickets sold — cannot draw"
+    },
+    {
+      "code": 6007,
+      "name": "WinnerIndexMismatch",
+      "msg": "winner_index mismatch with on-chain derivation"
+    },
+    {
+      "code": 6008,
+      "name": "InvalidWinnerIndex",
+      "msg": "winner_index out of range"
+    },
+    {
+      "code": 6009,
+      "name": "SlotHashesReadFailed",
+      "msg": "Failed to read SlotHashes sysvar"
+    },
+    {
+      "code": 6010,
+      "name": "ThresholdNotMet",
+      "msg": "Node threshold (2/3) not met"
+    },
+    {
+      "code": 6011,
+      "name": "WinnerTicketMismatch",
+      "msg": "Winner ticket index mismatch"
+    },
+    {
+      "code": 6012,
+      "name": "AlreadyClaimed",
+      "msg": "Prize already claimed"
+    },
+    {
+      "code": 6013,
+      "name": "InvalidParam",
+      "msg": "Invalid parameter"
+    },
+    {
+      "code": 6014,
+      "name": "Unauthorized",
+      "msg": "Unauthorised"
+    }
+  ],
+  "types": [
+    {
+      "name": "DrawVote",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "round_id",
+            "type": "u64"
+          },
+          {
+            "name": "node_pubkey",
+            "type": "pubkey"
+          },
+          {
+            "name": "winner_index",
+            "type": "u64"
+          },
+          {
+            "name": "slot_hash_used",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "claimed",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DrawVoteCast",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "round_id",
+            "type": "u64"
+          },
+          {
+            "name": "node_pubkey",
+            "type": "pubkey"
+          },
+          {
+            "name": "winner_index",
+            "type": "u64"
+          },
+          {
+            "name": "vote_count",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LotteryConfig",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "pubkey"
+          },
+          {
+            "name": "treasury",
+            "type": "pubkey"
+          },
+          {
+            "name": "ticket_price_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "max_tickets_per_wallet",
+            "type": "u8"
+          },
+          {
+            "name": "round_duration_slots",
+            "type": "u64"
+          },
+          {
+            "name": "node_share_bps",
+            "type": "u16"
+          },
+          {
+            "name": "treasury_share_bps",
+            "type": "u16"
+          },
+          {
+            "name": "threshold_bps",
+            "type": "u64"
+          },
+          {
+            "name": "active_node_count",
+            "type": "u32"
+          },
+          {
+            "name": "current_round_id",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LotteryState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "round_id",
+            "type": "u64"
+          },
+          {
+            "name": "start_slot",
+            "type": "u64"
+          },
+          {
+            "name": "end_slot",
+            "type": "u64"
+          },
+          {
+            "name": "ticket_count",
+            "type": "u64"
+          },
+          {
+            "name": "prize_pool_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "status",
+            "docs": [
+              "0 = Open, 1 = Committing, 2 = Closed"
+            ],
+            "type": "u8"
+          },
+          {
+            "name": "winner",
+            "type": "pubkey"
+          },
+          {
+            "name": "committed_winner_index",
+            "type": "u64"
+          },
+          {
+            "name": "slot_hash_used",
+            "docs": [
+              "Slot hash used as entropy — fixed on first cast_draw_vote"
+            ],
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "vote_count",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "NodePrizeClaimed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "round_id",
+            "type": "u64"
+          },
+          {
+            "name": "node_pubkey",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "NodePrizePool",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "round_id",
+            "type": "u64"
+          },
+          {
+            "name": "total_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "vote_count",
+            "type": "u8"
+          },
+          {
+            "name": "claimed_count",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RoundFinalized",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "round_id",
+            "type": "u64"
+          },
+          {
+            "name": "winner",
+            "type": "pubkey"
+          },
+          {
+            "name": "winner_index",
+            "type": "u64"
+          },
+          {
+            "name": "winner_share",
+            "type": "u64"
+          },
+          {
+            "name": "node_share",
+            "type": "u64"
+          },
+          {
+            "name": "treasury_share",
+            "type": "u64"
+          },
+          {
+            "name": "vote_count",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "RoundOpened",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "round_id",
+            "type": "u64"
+          },
+          {
+            "name": "start_slot",
+            "type": "u64"
+          },
+          {
+            "name": "end_slot",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Ticket",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "round_id",
+            "type": "u64"
+          },
+          {
+            "name": "buyer",
+            "type": "pubkey"
+          },
+          {
+            "name": "index",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "TicketPurchased",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "round_id",
+            "type": "u64"
+          },
+          {
+            "name": "buyer",
+            "type": "pubkey"
+          },
+          {
+            "name": "index",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "WalletTicketCount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "count",
+            "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    }
+  ]
+}
