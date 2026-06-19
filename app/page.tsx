@@ -23,10 +23,10 @@ import { useLotteryState } from "@/hooks/useLotteryState";
 import { useRoundHistory } from "@/hooks/useRoundHistory";
 import { useDrawVotes } from "@/hooks/useDrawVotes";
 
-// Single known node operator on devnet (deployer wallet)
+// Single known node operator on devnet
 const DEVNET_NODES: NodeInfo[] = [
   {
-    operatorPubkey: "Ddk15nuwaK3HZ8evHSwN93n1n3Xk4Gr8mt4fYN5TE1s1",
+    operatorPubkey: "6kacXz5Yb5X2RcsSt8GasPwdj3EfLGHJHy9YH7JLYPTP",
     stakeAmount: 0n,
     reputation: 100,
     totalAttestations: 0,
