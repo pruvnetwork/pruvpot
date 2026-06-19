@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback, useRef } from "react";
+import { useCallback, useRef, useState, useEffect } from "react";
 import { useWallet, useConnection, useAnchorWallet } from "@solana/wallet-adapter-react";
 import AttestationBadge from "@/components/AttestationBadge";
 import NodeConsensus from "@/components/NodeConsensus";
@@ -16,65 +16,29 @@ import ShareButton from "@/components/ShareButton";
 import WinnerBanner from "@/components/WinnerBanner";
 import LiveChat from "@/components/LiveChat";
 import { RoundCardSkeleton, NodeSkeleton, Skeleton } from "@/components/Skeleton";
-import {
-  MOCK_ATTESTATION,
-  MOCK_NODES,
-  MOCK_HISTORY,
-  getMockRound,
-  getMockVotes,
-  getRoundCountdown,
-  addTicket,
-} from "@/lib/mock";
+import { MOCK_ATTESTATION, MOCK_NODES, MOCK_HISTORY } from "@/lib/mock";
 import { formatCountdown } from "@/lib/utils";
-import type { LotteryRoundState, DrawVoteInfo } from "@/lib/types";
+import type { DrawVoteInfo } from "@/lib/types";
 import { buyTicket } from "@/lib/lottery-client";
+import { useLotteryState } from "@/hooks/useLotteryState";
 
 export default function Home() {
-  const [round, setRound] = useState<LotteryRoundState | null>(null);
-  const [votes, setVotes] = useState<DrawVoteInfo[]>([]);
-  const [countdown, setCountdown] = useState(0);
+  const { round, countdown, ticketPriceLamports, loading, error } = useLotteryState();
+
+  const votes: DrawVoteInfo[] = []; // real votes via DrawVote accounts — future work
   const [winner, setWinner] = useState<string | null>(null);
-  const [votingStarted, setVotingStarted] = useState(false);
   const [showBanner, setShowBanner] = useState(false);
   const prevWinnerRef = useRef<string | null>(null);
 
-  // Init + poll state every second (client-only to avoid hydration mismatch)
+  // Show banner when chain returns a winner
   useEffect(() => {
-    const tick = () => {
-      const r = getMockRound();
-      setRound(r);
-      setVotes(getMockVotes());
-      setCountdown(getRoundCountdown());
-      if (r.winner) setWinner(r.winner);
-    };
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, []);
-
-  // Simulate nodes casting votes after round ends
-  useEffect(() => {
-    if (!round || round.status !== 1 || votingStarted) return;
-    setVotingStarted(true);
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    MOCK_NODES.forEach((_, i) => {
-      const t = setTimeout(async () => {
-        const { addVote } = await import("@/lib/mock");
-        const result = addVote();
-        if (result.winner) setWinner(result.winner);
-      }, (i + 1) * 4000);
-      timers.push(t);
-    });
-    return () => timers.forEach(clearTimeout);
-  }, [round?.status, votingStarted]);
-
-  // Trigger winner banner once
-  useEffect(() => {
-    if (winner && winner !== prevWinnerRef.current) {
-      prevWinnerRef.current = winner;
+    const w = round?.winner ?? null;
+    if (w && w !== prevWinnerRef.current) {
+      prevWinnerRef.current = w;
+      setWinner(w);
       setShowBanner(true);
     }
-  }, [winner]);
+  }, [round?.winner]);
 
   const { connected } = useWallet();
   const { connection } = useConnection();
@@ -82,17 +46,20 @@ export default function Home() {
 
   const handleBuy = useCallback(async () => {
     if (!anchorWallet || !connected || !round) throw new Error("Wallet not connected");
-
-    const ticketIndex = BigInt(round.ticketCount.toString());
-    await buyTicket(anchorWallet, connection, BigInt(round.roundId.toString()), ticketIndex);
-
-    addTicket(); // optimistic UI update
+    const ticketIndex = round.ticketCount; // on-chain count = next ticket index
+    await buyTicket(anchorWallet, connection, round.roundId, ticketIndex);
   }, [anchorWallet, connected, connection, round]);
 
-  if (!round) return (
+  if (loading || !round) return (
     <div className="max-w-5xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-3 gap-5 lg:items-start">
       <div className="lg:col-span-2 space-y-4">
-        <RoundCardSkeleton />
+        {error ? (
+          <div className="border border-red-900 bg-red-950/30 rounded-2xl p-6 text-red-400 text-sm">
+            {error}
+          </div>
+        ) : (
+          <RoundCardSkeleton />
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Skeleton className="h-48" />
           <Skeleton className="h-48" />
@@ -164,7 +131,7 @@ export default function Home() {
             <PrizePool
               prizePoolLamports={round.prizePoolLamports}
               ticketCount={round.ticketCount}
-              ticketPriceSol={0.01}
+              ticketPriceSol={Number(ticketPriceLamports) / 1e9}
             />
 
             {/* Countdown */}
