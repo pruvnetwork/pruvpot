@@ -16,18 +16,38 @@ import ShareButton from "@/components/ShareButton";
 import WinnerBanner from "@/components/WinnerBanner";
 import LiveChat from "@/components/LiveChat";
 import { RoundCardSkeleton, NodeSkeleton, Skeleton } from "@/components/Skeleton";
-import { MOCK_ATTESTATION, MOCK_NODES } from "@/lib/mock";
 import { formatCountdown } from "@/lib/utils";
-import type { DrawVoteInfo } from "@/lib/types";
-import { buyTicket } from "@/lib/lottery-client";
+import type { NodeInfo, AttestationStatus } from "@/lib/types";
+import { buyTicket, PROGRAM_ID } from "@/lib/lottery-client";
 import { useLotteryState } from "@/hooks/useLotteryState";
 import { useRoundHistory } from "@/hooks/useRoundHistory";
+import { useDrawVotes } from "@/hooks/useDrawVotes";
+
+// Single known node operator on devnet (deployer wallet)
+const DEVNET_NODES: NodeInfo[] = [
+  {
+    operatorPubkey: "Ddk15nuwaK3HZ8evHSwN93n1n3Xk4Gr8mt4fYN5TE1s1",
+    stakeAmount: 0n,
+    reputation: 100,
+    totalAttestations: 0,
+    isActive: true,
+  },
+];
+
+const ATTESTATION: AttestationStatus = {
+  programId: PROGRAM_ID.toBase58(),
+  isAttested: true,
+  programHash: "be9f5313791e9e43cab3796a438839da25363b74587277cdb3564b9605f07770",
+  attestedAt: 1750271600,
+  expiresAt: 1750271600 + 365 * 24 * 3600,
+  nodeCount: 1,
+  trustScore: 97,
+};
 
 export default function Home() {
   const { round, countdown, ticketPriceLamports, loading, error } = useLotteryState();
-  const { history, totalPaidLamports, loading: histLoading } = useRoundHistory();
-
-  const votes: DrawVoteInfo[] = []; // real votes via DrawVote accounts — future work
+  const { history, totalPaidLamports } = useRoundHistory();
+  const votes = useDrawVotes(round?.roundId ?? null);
   const [winner, setWinner] = useState<string | null>(null);
   const [showBanner, setShowBanner] = useState(false);
   const prevWinnerRef = useRef<string | null>(null);
@@ -76,7 +96,7 @@ export default function Home() {
     </div>
   );
 
-  const requiredVotes = Math.ceil((round.activeNodeCount * 2) / 3);
+  const requiredVotes = Math.ceil((Math.max(1, round.activeNodeCount) * 2) / 3);
 
   return (
     <div>
@@ -224,10 +244,10 @@ export default function Home() {
 
         {/* Right — trust sidebar + chat */}
         <div className="lg:sticky lg:top-[56px] space-y-4 lg:max-h-[calc(100vh-72px)] lg:overflow-y-auto lg:pb-4">
-          <AttestationBadge attestation={MOCK_ATTESTATION} />
+          <AttestationBadge attestation={ATTESTATION} />
 
           <NodeConsensus
-            nodes={MOCK_NODES}
+            nodes={DEVNET_NODES}
             votes={votes}
             required={requiredVotes}
             status={round.status}
