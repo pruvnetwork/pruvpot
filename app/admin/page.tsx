@@ -1,24 +1,24 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { useWallet, useConnection, useAnchorWallet } from "@solana/wallet-adapter-react";
+import { Connection, PublicKey, SystemProgram, SYSVAR_SLOT_HASHES_PUBKEY } from "@solana/web3.js";
+import * as anchor from "@coral-xyz/anchor";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/Toast";
-import {
-  MOCK_CONFIG,
-  MOCK_TREASURY,
-  MOCK_NODES_ADMIN,
-  getAdminLog,
-  addAdminLog,
-  type AdminLogEntry,
-} from "@/lib/adminMock";
-import { getMockRound } from "@/lib/mock";
+import { useLotteryState } from "@/hooks/useLotteryState";
+import { useDrawVotes } from "@/hooks/useDrawVotes";
+import { useOnChainEvents } from "@/hooks/useOnChainEvents";
+import { getLotteryProgram, PROGRAM_ID, getConfigPDA, getLotteryStatePDA, getTicketPDA, u64LE } from "@/lib/lottery-client";
+import IDL from "@/lib/idl/pruv_lottery.json";
 
+const RPC = process.env.NEXT_PUBLIC_RPC_URL ?? "https://api.devnet.solana.com";
+const AUTHORITY = "Ddk15nuwaK3HZ8evHSwN93n1n3Xk4Gr8mt4fYN5TE1s1";
 const OPERATOR_KEY = "pruv-admin-2024";
 
-function fmtLamports(l: bigint) {
-  return (Number(l) / 1e9).toFixed(3) + " SOL";
+function fmtLamports(l: bigint | number) {
+  return (Number(l) / 1e9).toFixed(4) + " SOL";
 }
-
 function timeAgo(ms: number) {
   const s = Math.floor((Date.now() - ms) / 1000);
   if (s < 60) return `${s}s ago`;
@@ -30,10 +30,16 @@ function timeAgo(ms: number) {
 function AuthGate({ onAuth }: { onAuth: () => void }) {
   const [val, setVal] = useState("");
   const [err, setErr] = useState(false);
+  const { publicKey } = useWallet();
+
+  // Auto-auth if authority wallet connected
+  useEffect(() => {
+    if (publicKey?.toBase58() === AUTHORITY) onAuth();
+  }, [publicKey, onAuth]);
 
   function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (val === OPERATOR_KEY) { onAuth(); }
+    if (val === OPERATOR_KEY) onAuth();
     else { setErr(true); setTimeout(() => setErr(false), 1500); }
   }
 
@@ -41,13 +47,10 @@ function AuthGate({ onAuth }: { onAuth: () => void }) {
     <div className="min-h-[60vh] flex items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
-          <div className="w-12 h-12 bg-violet-600 rounded-xl mx-auto flex items-center justify-center text-xl font-bold mb-4">
-            🔑
-          </div>
+          <div className="w-12 h-12 bg-violet-600 rounded-xl mx-auto flex items-center justify-center text-xl font-bold mb-4">🔑</div>
           <h1 className="text-xl font-bold text-white">Operator Access</h1>
           <p className="text-zinc-500 text-sm mt-1">PRUVPOT Admin Panel</p>
         </div>
-
         <form onSubmit={submit} className="space-y-3">
           <input
             type="password"
@@ -57,51 +60,105 @@ function AuthGate({ onAuth }: { onAuth: () => void }) {
             autoFocus
             className={cn(
               "w-full bg-zinc-900 border rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 outline-none transition-colors",
-              err ? "border-red-600 animate-[shake_0.3s_ease]" : "border-zinc-700 focus:border-violet-600"
+              err ? "border-red-600" : "border-zinc-700 focus:border-violet-600"
             )}
           />
-          <button
-            type="submit"
-            className="w-full bg-violet-600 hover:bg-violet-500 active:scale-[0.98] text-white py-3 rounded-xl font-semibold transition-all"
-          >
+          <button type="submit" className="w-full bg-violet-600 hover:bg-violet-500 text-white py-3 rounded-xl font-semibold transition-all">
             Enter Panel
           </button>
         </form>
-
         <p className="text-center text-xs text-zinc-700">
-          hint: <span className="font-mono text-zinc-600">{OPERATOR_KEY}</span>
+          Or connect the authority wallet · <span className="font-mono text-zinc-600">{AUTHORITY.slice(0,8)}…</span>
         </p>
       </div>
     </div>
   );
 }
 
-// ── Instruction Button ─────────────────────────────────────────────────────────
+// ── On-chain config ────────────────────────────────────────────────────────────
+interface ChainConfig {
+  authority: string;
+  treasury: string;
+  ticketPriceLamports: bigint;
+  roundDurationSlots: bigint;
+  nodeShareBps: number;
+  treasuryShareBps: number;
+  thresholdBps: number;
+  activeNodeCount: number;
+  currentRoundId: bigint;
+}
+
+function useAdminConfig() {
+  const [cfg, setCfg] = useState<ChainConfig | null>(null);
+  const [treasuryBalance, setTreasuryBalance] = useState<bigint>(0n);
+
+  useEffect(() => {
+    const conn = new Connection(RPC, "confirmed");
+    const dummyWallet = {
+      publicKey: PublicKey.default,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      signTransaction: async (tx: any) => tx,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      signAllTransactions: async (txs: any[]) => txs,
+    };
+    const provider = new anchor.AnchorProvider(conn, dummyWallet as never, { commitment: "confirmed" });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const program = new anchor.Program(IDL as any, provider);
+    const [configPDA] = getConfigPDA();
+
+    async function load() {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const c: any = await (program.account as any).lotteryConfig.fetch(configPDA);
+        const treasury = (c.treasury as PublicKey).toBase58();
+        const config: ChainConfig = {
+          authority: (c.authority as PublicKey).toBase58(),
+          treasury,
+          ticketPriceLamports: BigInt(c.ticketPriceLamports.toString()),
+          roundDurationSlots: BigInt(c.roundDurationSlots.toString()),
+          nodeShareBps: Number(c.nodeShareBps),
+          treasuryShareBps: Number(c.treasuryShareBps),
+          thresholdBps: Number(c.thresholdBps),
+          activeNodeCount: Number(c.activeNodeCount),
+          currentRoundId: BigInt(c.currentRoundId.toString()),
+        };
+        setCfg(config);
+        const bal = await conn.getBalance(new PublicKey(treasury));
+        setTreasuryBalance(BigInt(bal));
+      } catch (e) {
+        console.error("Config fetch error", e);
+      }
+    }
+
+    load();
+    const id = setInterval(load, 10_000);
+    return () => clearInterval(id);
+  }, []);
+
+  return { cfg, treasuryBalance };
+}
+
+// ── IxButton ───────────────────────────────────────────────────────────────────
 function IxButton({
   label, description, variant = "default", disabled, onClick,
 }: {
-  label: string;
-  description: string;
+  label: string; description: string;
   variant?: "default" | "warning" | "danger" | "success";
   disabled?: boolean;
-  onClick: () => void;
+  onClick: () => Promise<void>;
 }) {
   const [busy, setBusy] = useState(false);
-
-  async function handle() {
-    if (busy || disabled) return;
-    setBusy(true);
-    await onClick();
-    setBusy(false);
-  }
-
   const colors = {
     default: "bg-violet-600 hover:bg-violet-500 text-white",
     warning: "bg-yellow-700 hover:bg-yellow-600 text-white",
     danger:  "bg-red-700 hover:bg-red-600 text-white",
     success: "bg-emerald-700 hover:bg-emerald-600 text-white",
   };
-
+  async function handle() {
+    if (busy || disabled) return;
+    setBusy(true);
+    try { await onClick(); } finally { setBusy(false); }
+  }
   return (
     <div className="flex items-center justify-between gap-4 p-4 bg-zinc-800/40 rounded-xl">
       <div className="min-w-0">
@@ -117,97 +174,125 @@ function IxButton({
           busy && "opacity-70 cursor-wait"
         )}
       >
-        {busy ? (
-          <span className="flex items-center gap-1.5">
-            <span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full inline-block" style={{ animation: "spin 0.7s linear infinite" }} />
-            Sending…
-          </span>
-        ) : label.split("·")[0].trim()}
+        {busy
+          ? <span className="flex items-center gap-1.5"><span className="w-3 h-3 border-2 border-current border-t-transparent rounded-full inline-block animate-spin" />Sending…</span>
+          : label.split("·")[0].trim()
+        }
       </button>
     </div>
   );
 }
 
-// ── Main Admin Page ────────────────────────────────────────────────────────────
+// ── Main Panel ─────────────────────────────────────────────────────────────────
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
-  const [log, setLog] = useState<AdminLogEntry[]>([]);
-  const [round, setRound] = useState(getMockRound());
-  const [config, setConfig] = useState(MOCK_CONFIG);
-  const [editBps, setEditBps] = useState(false);
-  const [bpsForm, setBpsForm] = useState({
-    winner: MOCK_CONFIG.winnerBps,
-    node: MOCK_CONFIG.nodeBps,
-    treasury: MOCK_CONFIG.treasuryBps,
-  });
-  const { toast, promise } = useToast();
+  const { toast } = useToast();
+  const { publicKey } = useWallet();
+  const { connection } = useConnection();
+  const anchorWallet = useAnchorWallet();
 
-  useEffect(() => {
-    if (!authed) return;
-    setLog(getAdminLog());
-    const id = setInterval(() => setRound(getMockRound()), 1000);
-    return () => clearInterval(id);
-  }, [authed]);
+  const { round, loading: roundLoading } = useLotteryState();
+  const votes = useDrawVotes(round?.roundId ?? null);
+  const events = useOnChainEvents(30);
+  const { cfg, treasuryBalance } = useAdminConfig();
 
-  function refreshLog() { setLog(getAdminLog()); }
+  const onAuth = useCallback(() => setAuthed(true), []);
+  if (!authed) return <AuthGate onAuth={onAuth} />;
 
-  async function simulate(action: string, detail: string, delay = 1200) {
-    await new Promise(r => setTimeout(r, delay));
-    const sig = `${Math.random().toString(36).slice(2,6)}...${Math.random().toString(36).slice(2,4)}`;
-    addAdminLog({ action, detail, status: "success", txSig: sig });
-    refreshLog();
-    return sig;
-  }
+  const isAuthority = publicKey?.toBase58() === AUTHORITY;
+  const canSign = isAuthority && !!anchorWallet;
 
-  async function handleInitConfig() {
-    await promise(simulate("init_config", "Config initialized on-chain"), {
-      loading: "Sending init_config…",
-      success: "Config initialized!",
-      error: "Transaction failed",
-    });
+  // ── Handlers ──────────────────────────────────────────────────────────────
+  async function handleInitRound() {
+    if (!canSign || !cfg) { toast("Connect authority wallet", "error"); return; }
+    try {
+      const program = getLotteryProgram(anchorWallet, connection);
+      const nextId = cfg.currentRoundId + 1n;
+      const [statePDA] = getLotteryStatePDA(nextId);
+      const [configPDA] = getConfigPDA();
+      const sig = await (program.methods as any)
+        .initializeRound(new anchor.BN(nextId.toString()))
+        .accounts({ config: configPDA, lotteryState: statePDA, payer: publicKey, systemProgram: SystemProgram.programId })
+        .rpc({ commitment: "confirmed" });
+      toast(`Round #${nextId} opened · ${sig.slice(0, 8)}…`, "success");
+    } catch (e) {
+      toast(e instanceof Error ? e.message.slice(0, 80) : "TX failed", "error");
+    }
   }
 
   async function handleUpdateNodeCount() {
-    await promise(simulate("update_node_count", `Node count set to ${config.nodeCount}`), {
-      loading: "Sending update_node_count…",
-      success: "Node count updated!",
-      error: "Transaction failed",
-    });
-  }
-
-  async function handleInitRound() {
-    await promise(simulate("initialize_round", `Round #${Number(round.roundId) + 1} opened`), {
-      loading: "Opening new round…",
-      success: `Round #${Number(round.roundId) + 1} initialized!`,
-      error: "Transaction failed",
-    });
+    if (!canSign || !cfg) { toast("Connect authority wallet", "error"); return; }
+    try {
+      const program = getLotteryProgram(anchorWallet, connection);
+      const [configPDA] = getConfigPDA();
+      const sig = await (program.methods as any)
+        .updateNodeCount(cfg.activeNodeCount)
+        .accounts({ config: configPDA, authority: publicKey })
+        .rpc({ commitment: "confirmed" });
+      toast(`Node count synced · ${sig.slice(0, 8)}…`, "success");
+    } catch (e) {
+      toast(e instanceof Error ? e.message.slice(0, 80) : "TX failed", "error");
+    }
   }
 
   async function handleFinalize() {
-    await promise(simulate("finalize_draw", `Round #${round.roundId} finalized`, 1800), {
-      loading: "Finalizing draw…",
-      success: "Draw finalized — winner selected!",
-      error: "Finalization failed",
-    });
-  }
+    if (!canSign || !round || !cfg) { toast("Connect authority wallet", "error"); return; }
+    try {
+      const program = getLotteryProgram(anchorWallet, connection);
+      const [configPDA] = getConfigPDA();
+      const [statePDA] = getLotteryStatePDA(round.roundId);
 
-  async function saveBps() {
-    const total = bpsForm.winner + bpsForm.node + bpsForm.treasury;
-    if (total !== 10000) {
-      toast(`BPS must sum to 10,000 (currently ${total})`, "error");
-      return;
+      // Derive winner ticket from draw votes
+      const winnerIndex = votes[0]?.winnerIndex;
+      if (winnerIndex === undefined) { toast("No draw votes yet", "error"); return; }
+      const [winnerTicketPDA] = getTicketPDA(round.roundId, winnerIndex);
+
+      // Fetch winner wallet from ticket account
+      const conn2 = new Connection(RPC, "confirmed");
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const dummyWallet = { publicKey: PublicKey.default, signTransaction: async (tx: any) => tx, signAllTransactions: async (txs: any[]) => txs };
+      const readProvider = new anchor.AnchorProvider(conn2, dummyWallet as never, { commitment: "confirmed" });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const readProgram = new anchor.Program(IDL as any, readProvider);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const ticket: any = await (readProgram.account as any).ticket.fetch(winnerTicketPDA);
+      const winnerWallet: PublicKey = ticket.buyer;
+
+      // node_prize_pool PDA
+      const [nodePrizePDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from("node_prizes"), u64LE(round.roundId)],
+        PROGRAM_ID
+      );
+
+      const sig = await (program.methods as any)
+        .finalizeDraw(new anchor.BN(round.roundId.toString()))
+        .accounts({
+          config: configPDA,
+          lotteryState: statePDA,
+          winnerTicket: winnerTicketPDA,
+          winnerWallet,
+          nodePrizePool: nodePrizePDA,
+          treasury: new PublicKey(cfg.treasury),
+          caller: publicKey,
+          systemProgram: SystemProgram.programId,
+        })
+        .rpc({ commitment: "confirmed" });
+      toast(`Draw finalized · ${sig.slice(0, 8)}…`, "success");
+    } catch (e) {
+      toast(e instanceof Error ? e.message.slice(0, 80) : "TX failed", "error");
     }
-    await promise(
-      simulate("update_config", `BPS: ${bpsForm.winner}/${bpsForm.node}/${bpsForm.treasury}`),
-      { loading: "Updating config…", success: "Config updated!", error: "Failed" }
-    );
-    setConfig(c => ({ ...c, winnerBps: bpsForm.winner, nodeBps: bpsForm.node, treasuryBps: bpsForm.treasury }));
-    setEditBps(false);
   }
 
-  if (!authed) return <AuthGate onAuth={() => setAuthed(true)} />;
+  const winnerBps = cfg ? 10000 - cfg.nodeShareBps - cfg.treasuryShareBps : 8000;
 
-  const treasury = MOCK_TREASURY;
+  // Activity log: derive from on-chain events
+  const activityLog = [...events].reverse().map(ev => {
+    if (ev.type === "TicketPurchased") return { text: `buy_ticket · Round #${ev.roundId} ticket #${ev.index} by ${ev.buyer.slice(0,6)}…`, ts: ev.ts, color: "violet" };
+    if (ev.type === "RoundOpened")    return { text: `initialize_round · Round #${ev.roundId} opened`, ts: ev.ts, color: "emerald" };
+    if (ev.type === "RoundFinalized") return { text: `finalize_draw · Round #${ev.roundId} winner ${ev.winner.slice(0,6)}… · ${fmtLamports(ev.winnerShare)}`, ts: ev.ts, color: "yellow" };
+    if (ev.type === "DrawVoteCast")   return { text: `cast_draw_vote · Round #${ev.roundId} node ${ev.node.slice(0,6)}… (${ev.voteCount} votes)`, ts: ev.ts, color: "sky" };
+    return null;
+  }).filter(Boolean) as { text: string; ts: number; color: string }[];
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
@@ -215,44 +300,49 @@ export default function AdminPage() {
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-            <span>Admin Panel</span>
-            <span className="text-xs bg-red-900/60 border border-red-800 text-red-400 px-2 py-0.5 rounded-full font-normal">
-              Operator Only
-            </span>
+            Admin Panel
+            <span className="text-xs bg-red-900/60 border border-red-800 text-red-400 px-2 py-0.5 rounded-full font-normal">Operator Only</span>
           </h1>
-          <p className="text-zinc-500 text-sm mt-0.5">
-            {config.authority} · devnet
+          <p className="text-zinc-500 text-sm mt-0.5 font-mono">
+            {cfg?.authority.slice(0,8)}… · devnet
+            {isAuthority && <span className="ml-2 text-emerald-400">(authority wallet)</span>}
           </p>
         </div>
-        <div className="flex items-center gap-2 text-xs text-zinc-500 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2">
-          <span className={cn(
-            "w-1.5 h-1.5 rounded-full",
-            round.status === 0 ? "bg-emerald-400 animate-pulse" :
-            round.status === 1 ? "bg-yellow-400 animate-pulse" : "bg-zinc-500"
-          )} />
-          Round #{round.roundId.toString()} ·{" "}
-          {round.status === 0 ? "Open" : round.status === 1 ? "Drawing" : "Closed"}
-        </div>
+        {round && (
+          <div className="flex items-center gap-2 text-xs text-zinc-500 bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2">
+            <span className={cn("w-1.5 h-1.5 rounded-full",
+              round.status === 0 ? "bg-emerald-400 animate-pulse" :
+              round.status === 1 ? "bg-yellow-400 animate-pulse" : "bg-zinc-500"
+            )} />
+            Round #{round.roundId.toString()} · {round.status === 0 ? "Open" : round.status === 1 ? "Drawing" : "Closed"}
+          </div>
+        )}
       </div>
 
+      {!canSign && (
+        <div className="border border-yellow-800 bg-yellow-950/20 rounded-xl px-4 py-3 text-xs text-yellow-400">
+          ⚠️ Connect the authority wallet to send transactions ({AUTHORITY.slice(0, 8)}…{AUTHORITY.slice(-4)})
+        </div>
+      )}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Left — controls */}
+        {/* Left */}
         <div className="lg:col-span-2 space-y-5">
 
           {/* Round Controls */}
           <Section title="Round Instructions" icon="▶">
             <IxButton
               label="initialize_round · Open new round"
-              description="Creates a new lottery round PDA with configured slot window"
+              description={`Creates Round #${cfg ? (cfg.currentRoundId + 1n).toString() : "?"} PDA with ${cfg ? cfg.roundDurationSlots.toLocaleString() : "?"} slot window`}
               variant="success"
-              disabled={round.status === 0}
+              disabled={!canSign || round?.status === 0}
               onClick={handleInitRound}
             />
             <IxButton
               label="finalize_draw · Settle winner"
-              description="Calls finalize_draw after 2/3 node threshold is reached — transfers prize via CPI"
+              description={`Requires 2/3 node vote threshold · currently ${votes.length} vote(s) for round #${round?.roundId.toString() ?? "?"}`}
               variant="warning"
-              disabled={round.status !== 1}
+              disabled={!canSign || round?.status !== 1 || votes.length === 0}
               onClick={handleFinalize}
             />
             <div className="flex items-center gap-3 p-4 bg-zinc-800/20 rounded-xl border border-zinc-800/50">
@@ -261,9 +351,7 @@ export default function AdminPage() {
                 <p className="text-sm text-zinc-500">cast_draw_vote & claim_node_prize</p>
                 <p className="text-xs text-zinc-700 mt-0.5">
                   Node operator instructions — managed in the{" "}
-                  <a href="/operator" className="text-sky-600 hover:text-sky-400 underline">
-                    Node Operator Portal
-                  </a>
+                  <a href="/operator" className="text-sky-600 hover:text-sky-400 underline">Node Operator Portal</a>
                 </p>
               </div>
             </div>
@@ -273,161 +361,113 @@ export default function AdminPage() {
           <Section title="Config Instructions" icon="⚙">
             <IxButton
               label="init_config · Initialize program"
-              description="One-time setup of LotteryConfig PDA — only callable by authority"
+              description="One-time setup — already initialized on devnet"
               variant="danger"
-              disabled={config.isInitialized}
-              onClick={handleInitConfig}
+              disabled
+              onClick={async () => {}}
             />
             <IxButton
               label="update_node_count · Sync operators"
-              description={`Current: ${config.nodeCount} nodes · Reads from NodeRegistry PDA`}
+              description={`Current: ${cfg?.activeNodeCount ?? "?"} nodes — updates threshold for draw votes`}
+              disabled={!canSign}
               onClick={handleUpdateNodeCount}
             />
 
-            {/* BPS Editor */}
-            <div className="p-4 bg-zinc-800/40 rounded-xl space-y-3">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold text-zinc-200">Prize Split (BPS)</p>
-                  <p className="text-xs text-zinc-500 mt-0.5">Must sum to 10,000</p>
-                </div>
-                <button
-                  onClick={() => setEditBps(!editBps)}
-                  className="text-xs text-violet-400 hover:text-violet-300 transition-colors"
-                >
-                  {editBps ? "Cancel" : "Edit"}
-                </button>
-              </div>
-
-              {editBps ? (
-                <div className="space-y-2">
-                  {(["winner","node","treasury"] as const).map(key => (
-                    <div key={key} className="flex items-center gap-3">
-                      <label className="text-xs text-zinc-500 w-20 capitalize">{key}</label>
-                      <input
-                        type="number"
-                        min={0}
-                        max={10000}
-                        value={bpsForm[key]}
-                        onChange={e => setBpsForm(f => ({ ...f, [key]: Number(e.target.value) }))}
-                        className="flex-1 bg-zinc-900 border border-zinc-700 focus:border-violet-600 rounded-lg px-3 py-1.5 text-sm text-white outline-none"
-                      />
-                      <span className="text-xs text-zinc-600 w-12">{(bpsForm[key] / 100).toFixed(1)}%</span>
-                    </div>
-                  ))}
-                  <div className="flex items-center justify-between pt-1">
-                    <span className={cn(
-                      "text-xs",
-                      bpsForm.winner + bpsForm.node + bpsForm.treasury === 10000
-                        ? "text-emerald-500" : "text-red-500"
-                    )}>
-                      Total: {bpsForm.winner + bpsForm.node + bpsForm.treasury} / 10,000
-                    </span>
-                    <button
-                      onClick={saveBps}
-                      className="text-xs bg-violet-600 hover:bg-violet-500 text-white px-3 py-1.5 rounded-lg transition-colors"
-                    >
-                      Save & Send tx
-                    </button>
-                  </div>
-                </div>
-              ) : (
+            {/* BPS display (read-only — no on-chain update_bps instruction) */}
+            {cfg && (
+              <div className="p-4 bg-zinc-800/40 rounded-xl space-y-3">
+                <p className="text-sm font-semibold text-zinc-200">Prize Split (BPS) <span className="text-zinc-600 font-normal text-xs">— on-chain</span></p>
                 <div className="flex gap-3">
-                  <BpsPill label="Winner" bps={config.winnerBps} color="emerald" />
-                  <BpsPill label="Nodes"  bps={config.nodeBps}   color="sky" />
-                  <BpsPill label="Treasury" bps={config.treasuryBps} color="violet" />
+                  <BpsPill label="Winner"   bps={winnerBps}            color="emerald" />
+                  <BpsPill label="Nodes"    bps={cfg.nodeShareBps}     color="sky" />
+                  <BpsPill label="Treasury" bps={cfg.treasuryShareBps} color="violet" />
                 </div>
-              )}
-            </div>
+              </div>
+            )}
           </Section>
 
           {/* Activity Log */}
-          <Section title="Activity Log" icon="📋">
+          <Section title="Activity Log (on-chain)" icon="📋">
             <div className="space-y-2 max-h-64 overflow-y-auto">
-              {log.map(e => (
-                <div key={e.id} className="flex items-start gap-3 text-xs">
-                  <span className={cn(
-                    "mt-0.5 w-1.5 h-1.5 rounded-full shrink-0",
-                    e.status === "success" ? "bg-emerald-400" :
-                    e.status === "error"   ? "bg-red-400" : "bg-yellow-400"
+              {activityLog.length === 0 && (
+                <p className="text-xs text-zinc-600 py-2">Loading on-chain events…</p>
+              )}
+              {activityLog.map((e, i) => (
+                <div key={i} className="flex items-start gap-3 text-xs">
+                  <span className={cn("mt-0.5 w-1.5 h-1.5 rounded-full shrink-0",
+                    e.color === "emerald" ? "bg-emerald-400" :
+                    e.color === "yellow"  ? "bg-yellow-400" :
+                    e.color === "sky"     ? "bg-sky-400" : "bg-violet-400"
                   )} />
-                  <div className="flex-1 min-w-0">
-                    <span className="font-mono text-violet-400">{e.action}</span>
-                    <span className="text-zinc-500"> · {e.detail}</span>
-                    {e.txSig && (
-                      <a
-                        href={`https://explorer.solana.com/tx/${e.txSig}?cluster=devnet`}
-                        target="_blank" rel="noopener noreferrer"
-                        className="ml-2 text-sky-600 hover:text-sky-400"
-                      >
-                        {e.txSig} ↗
-                      </a>
-                    )}
-                  </div>
-                  <span className="text-zinc-700 shrink-0">{timeAgo(e.at)}</span>
+                  <span className="flex-1 text-zinc-400 leading-relaxed">{e.text}</span>
+                  <span className="text-zinc-700 shrink-0">{timeAgo(e.ts)}</span>
                 </div>
               ))}
             </div>
           </Section>
         </div>
 
-        {/* Right — stats */}
+        {/* Right */}
         <div className="space-y-4">
-
           {/* Treasury */}
           <div className="border border-zinc-800 bg-zinc-900/50 rounded-xl p-4 space-y-3">
             <p className="text-xs text-zinc-500 uppercase tracking-widest">Treasury</p>
-            <p className="text-2xl font-bold text-white">{fmtLamports(treasury.balanceLamports)}</p>
+            <p className="text-2xl font-bold text-white">{fmtLamports(treasuryBalance)}</p>
             <div className="text-xs text-zinc-600 space-y-1">
               <div className="flex justify-between">
-                <span>All-time collected</span>
-                <span className="text-zinc-400">{fmtLamports(treasury.allTimeCollectedLamports)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span>Rate (5%)</span>
-                <span className="text-zinc-400">{config.treasuryBps / 100}% per round</span>
+                <span>Treasury rate</span>
+                <span className="text-zinc-400">{cfg ? (cfg.treasuryShareBps / 100).toFixed(1) : "?"}% per round</span>
               </div>
             </div>
-            <div className="text-xs text-zinc-600 border-t border-zinc-800 pt-2">
-              <span className="font-mono text-zinc-500">{config.treasury}</span>
+            <div className="text-xs border-t border-zinc-800 pt-2">
+              <a
+                href={`https://explorer.solana.com/address/${cfg?.treasury}?cluster=devnet`}
+                target="_blank" rel="noopener noreferrer"
+                className="font-mono text-zinc-500 hover:text-sky-400 transition-colors"
+              >
+                {cfg?.treasury.slice(0, 8)}…{cfg?.treasury.slice(-4)} ↗
+              </a>
             </div>
           </div>
 
-          {/* Live round stats */}
+          {/* Current Round */}
           <div className="border border-zinc-800 bg-zinc-900/50 rounded-xl p-4 space-y-3">
             <p className="text-xs text-zinc-500 uppercase tracking-widest">Current Round</p>
-            <div className="space-y-2 text-sm">
-              <Row label="Round ID" value={`#${round.roundId}`} mono />
-              <Row label="Tickets" value={round.ticketCount.toString()} />
-              <Row label="Prize Pool" value={fmtLamports(round.prizePoolLamports)} accent />
-              <Row label="Votes" value={`${round.voteCount}/${round.activeNodeCount}`} />
-              <Row label="Threshold" value={`${round.thresholdBps}bps`} mono />
-            </div>
+            {roundLoading ? (
+              <p className="text-xs text-zinc-600">Loading…</p>
+            ) : round ? (
+              <div className="space-y-2 text-sm">
+                <Row label="Round ID"   value={`#${round.roundId}`} mono />
+                <Row label="Tickets"    value={round.ticketCount.toString()} />
+                <Row label="Prize Pool" value={fmtLamports(round.prizePoolLamports > 0n ? round.prizePoolLamports : round.ticketCount * (cfg?.ticketPriceLamports ?? 10_000_000n))} accent />
+                <Row label="Draw Votes" value={`${votes.length}/${round.activeNodeCount}`} />
+                <Row label="End Slot"   value={round.endSlot.toString()} mono />
+              </div>
+            ) : (
+              <p className="text-xs text-zinc-600">No active round</p>
+            )}
           </div>
 
           {/* Nodes */}
           <div className="border border-zinc-800 bg-zinc-900/50 rounded-xl p-4 space-y-3">
-            <p className="text-xs text-zinc-500 uppercase tracking-widest">Nodes ({MOCK_NODES_ADMIN.length})</p>
-            {MOCK_NODES_ADMIN.map((n, i) => (
-              <div key={i} className="flex items-center gap-2 text-xs">
-                <span className={cn(
-                  "w-1.5 h-1.5 rounded-full shrink-0",
-                  n.active ? "bg-emerald-400" : "bg-zinc-600"
-                )} />
-                <span className="font-mono text-zinc-400 flex-1 truncate">{n.pubkey}</span>
-                <span className="text-zinc-600 shrink-0">{n.uptime}</span>
-              </div>
-            ))}
+            <p className="text-xs text-zinc-500 uppercase tracking-widest">Active Nodes ({cfg?.activeNodeCount ?? 0})</p>
+            <div className="flex items-center gap-2 text-xs">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+              <span className="font-mono text-zinc-400 flex-1 truncate">{AUTHORITY.slice(0,8)}…{AUTHORITY.slice(-4)}</span>
+              <span className="text-zinc-600 shrink-0">operator</span>
+            </div>
           </div>
 
           {/* Config summary */}
-          <div className="border border-zinc-800 bg-zinc-900/50 rounded-xl p-4 space-y-2 text-xs">
-            <p className="text-zinc-500 uppercase tracking-widest mb-2">Config</p>
-            <Row label="Ticket Price" value={fmtLamports(config.ticketPriceLamports)} />
-            <Row label="Round Duration" value={`${config.roundDurationSlots.toLocaleString()} slots`} />
-            <Row label="Rounds Run" value={config.totalRoundsRun.toString()} />
-            <Row label="Total Volume" value={fmtLamports(config.totalVolumeLamports)} accent />
-          </div>
+          {cfg && (
+            <div className="border border-zinc-800 bg-zinc-900/50 rounded-xl p-4 space-y-2 text-xs">
+              <p className="text-zinc-500 uppercase tracking-widest mb-2">On-chain Config</p>
+              <Row label="Ticket Price"    value={fmtLamports(cfg.ticketPriceLamports)} />
+              <Row label="Round Duration"  value={`${cfg.roundDurationSlots.toLocaleString()} slots`} />
+              <Row label="Current Round"   value={`#${cfg.currentRoundId}`} mono />
+              <Row label="Threshold"       value={`${cfg.thresholdBps} bps`} mono />
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -437,24 +477,18 @@ export default function AdminPage() {
 function Section({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) {
   return (
     <div className="border border-zinc-800 bg-zinc-900/50 rounded-xl p-5 space-y-3">
-      <h2 className="text-sm font-semibold text-zinc-200 flex items-center gap-2">
-        <span>{icon}</span> {title}
-      </h2>
+      <h2 className="text-sm font-semibold text-zinc-200 flex items-center gap-2"><span>{icon}</span> {title}</h2>
       {children}
     </div>
   );
 }
 
 function BpsPill({ label, bps, color }: { label: string; bps: number; color: "emerald" | "sky" | "violet" }) {
-  const c = {
-    emerald: "bg-emerald-950 border-emerald-800 text-emerald-300",
-    sky:     "bg-sky-950 border-sky-800 text-sky-300",
-    violet:  "bg-violet-950 border-violet-800 text-violet-300",
-  }[color];
+  const c = { emerald: "bg-emerald-950 border-emerald-800 text-emerald-300", sky: "bg-sky-950 border-sky-800 text-sky-300", violet: "bg-violet-950 border-violet-800 text-violet-300" }[color];
   return (
     <div className={cn("flex-1 border rounded-lg px-2 py-1.5 text-center text-xs", c)}>
       <p className="text-zinc-500 text-[10px]">{label}</p>
-      <p className="font-semibold">{bps / 100}%</p>
+      <p className="font-semibold">{(bps / 100).toFixed(1)}%</p>
     </div>
   );
 }
@@ -463,11 +497,7 @@ function Row({ label, value, mono, accent }: { label: string; value: string; mon
   return (
     <div className="flex justify-between gap-2">
       <span className="text-zinc-600">{label}</span>
-      <span className={cn(
-        "font-medium",
-        accent ? "text-emerald-400" : "text-zinc-300",
-        mono && "font-mono"
-      )}>{value}</span>
+      <span className={cn("font-medium", accent ? "text-emerald-400" : "text-zinc-300", mono && "font-mono")}>{value}</span>
     </div>
   );
 }
