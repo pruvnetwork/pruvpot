@@ -7,8 +7,6 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { cn } from "@/lib/utils";
 import NotificationBell from "./NotificationBell";
 
-const MOCK_WALLET = "9ZwL...kFpQ";
-
 const links = [
   { href: "/",            label: "Lottery",      icon: "◈" },
   { href: "/tickets",     label: "My Tickets",   icon: "◉" },
@@ -28,7 +26,7 @@ export default function Nav({ connected, walletAddr, onDisconnect }: Props) {
   const [walletModal, setWalletModal] = useState(false);
   const { wallets, select, connect } = useWallet();
 
-  const profileHref = `/u/${encodeURIComponent(walletAddr ?? MOCK_WALLET)}`;
+  const profileHref = walletAddr ? `/u/${encodeURIComponent(walletAddr)}` : null;
 
   async function handleSelectWallet(name: string) {
     setWalletModal(false);
@@ -71,21 +69,30 @@ export default function Nav({ connected, walletAddr, onDisconnect }: Props) {
 
           <div className="flex items-center gap-2">
             {/* Profile avatar */}
-            <Link
-              href={profileHref}
-              className={cn(
-                "hidden md:flex w-7 h-7 rounded-full items-center justify-center transition-colors shrink-0",
-                path.startsWith("/u/")
-                  ? "bg-violet-600 text-white"
-                  : "bg-zinc-800 text-zinc-400 hover:bg-violet-700 hover:text-white"
-              )}
-              title="My Profile"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
-                <circle cx="12" cy="8" r="4" />
-                <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-              </svg>
-            </Link>
+            {profileHref ? (
+              <Link
+                href={profileHref}
+                className={cn(
+                  "hidden md:flex w-7 h-7 rounded-full items-center justify-center transition-colors shrink-0",
+                  path.startsWith("/u/")
+                    ? "bg-violet-600 text-white"
+                    : "bg-zinc-800 text-zinc-400 hover:bg-violet-700 hover:text-white"
+                )}
+                title="My Profile"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                  <circle cx="12" cy="8" r="4" />
+                  <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+                </svg>
+              </Link>
+            ) : (
+              <span className="hidden md:flex w-7 h-7 rounded-full items-center justify-center bg-zinc-800/40 text-zinc-600 shrink-0">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
+                  <circle cx="12" cy="8" r="4" />
+                  <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
+                </svg>
+              </span>
+            )}
 
             {/* Notification bell */}
             <NotificationBell />
@@ -145,20 +152,28 @@ export default function Nav({ connected, walletAddr, onDisconnect }: Props) {
                 {path === l.href && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400" />}
               </Link>
             ))}
-            <Link
-              href={profileHref}
-              onClick={() => setMenuOpen(false)}
-              className={cn(
-                "flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm transition-colors",
-                path.startsWith("/u/")
-                  ? "bg-violet-600/20 text-violet-300 border border-violet-800/50"
-                  : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
-              )}
-            >
-              <span className="text-lg">◎</span>
-              My Profile
-              {path.startsWith("/u/") && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400" />}
-            </Link>
+            {profileHref ? (
+              <Link
+                href={profileHref}
+                onClick={() => setMenuOpen(false)}
+                className={cn(
+                  "flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm transition-colors",
+                  path.startsWith("/u/")
+                    ? "bg-violet-600/20 text-violet-300 border border-violet-800/50"
+                    : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
+                )}
+              >
+                <span className="text-lg">◎</span>
+                My Profile
+                {path.startsWith("/u/") && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400" />}
+              </Link>
+            ) : (
+              <div className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm text-zinc-600">
+                <span className="text-lg">◎</span>
+                My Profile
+                <span className="ml-auto text-xs text-zinc-700">connect wallet</span>
+              </div>
+            )}
           </nav>
         </div>
       )}
