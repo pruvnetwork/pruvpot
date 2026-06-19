@@ -1,16 +1,24 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
-import { ROUND_STATS, TOTAL_STATS } from "@/lib/mockData";
+import { useRoundHistory } from "@/hooks/useRoundHistory";
+import { useLotteryState } from "@/hooks/useLotteryState";
 import { Skeleton } from "@/components/Skeleton";
 
 export default function StatsPage() {
-  const [loading, setLoading] = useState(true);
-  useEffect(() => { const t = setTimeout(() => setLoading(false), 700); return () => clearTimeout(t); }, []);
+  const { history, totalPaidLamports, loading: historyLoading } = useRoundHistory();
+  const { round, loading: roundLoading } = useLotteryState();
 
-  const max = Math.max(...ROUND_STATS.map(r => r.prizePoolSOL));
-  const recent = [...ROUND_STATS].reverse().slice(0, 14).reverse();
+  const loading = historyLoading || roundLoading;
+
+  const totalRounds = Number(round?.roundId ?? 0);
+  const totalPrizeSOL = Number(totalPaidLamports) / 1e9;
+  const totalTickets = history.reduce((s, r) => s + Number(r.ticketCount), 0);
+  const avgPoolSOL = totalRounds > 0 ? totalPrizeSOL / Math.max(history.length, 1) : 0;
+
+  const recent = [...history].slice(0, 14);
+  const maxPool = Math.max(...recent.map(r => Number(r.prizePoolLamports)), 1);
+  const maxTickets = Math.max(...recent.map(r => Number(r.ticketCount)), 1);
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
@@ -26,36 +34,40 @@ export default function StatsPage() {
         </div>
       )}
 
-      {/* Overview cards */}
       {!loading && <>
+      {/* Overview cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Card label="Total Rounds" value={TOTAL_STATS.totalRounds.toString()} />
-        <Card label="Total Prize Paid" value={`${TOTAL_STATS.totalPrizeSOL.toFixed(2)} SOL`} accent />
-        <Card label="Total Tickets Sold" value={TOTAL_STATS.totalTickets.toLocaleString()} />
-        <Card label="Avg Pool / Round" value={`${TOTAL_STATS.avgPoolSOL.toFixed(3)} SOL`} />
+        <Card label="Total Rounds" value={totalRounds.toString()} />
+        <Card label="Total Prize Paid" value={`${totalPrizeSOL.toFixed(3)} SOL`} accent />
+        <Card label="Total Tickets Sold" value={totalTickets.toLocaleString()} />
+        <Card label="Avg Pool / Round" value={`${avgPoolSOL.toFixed(3)} SOL`} />
       </div>
 
-      {/* Bar chart — last 14 rounds */}
+      {history.length === 0 && (
+        <div className="border border-zinc-800 bg-zinc-900/50 rounded-xl p-8 text-center text-zinc-500 text-sm">
+          No finalized rounds yet.
+        </div>
+      )}
+
+      {history.length > 0 && <>
+      {/* Prize pool bar chart */}
       <div className="border border-zinc-800 bg-zinc-900/50 rounded-xl p-5">
         <h2 className="text-sm font-semibold text-zinc-200 mb-4">
-          Prize Pool — Last 14 Rounds
+          Prize Pool — Last {recent.length} Rounds
         </h2>
         <div className="flex items-end gap-1.5 h-36">
-          {recent.map((r) => {
-            const pct = (r.prizePoolSOL / max) * 100;
+          {[...recent].reverse().map((r) => {
+            const pct = (Number(r.prizePoolLamports) / maxPool) * 100;
             return (
-              <div key={r.roundId} className="flex-1 flex flex-col items-center gap-1 group">
-                {/* Tooltip */}
+              <div key={r.roundId.toString()} className="flex-1 flex flex-col items-center gap-1 group">
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-zinc-400 text-center pointer-events-none">
-                  {r.prizePoolSOL.toFixed(2)}
+                  {(Number(r.prizePoolLamports) / 1e9).toFixed(3)}
                 </div>
                 <div
                   className="w-full rounded-t-sm bg-violet-600 group-hover:bg-violet-400 transition-colors"
                   style={{ height: `${Math.max(pct, 4)}%` }}
                 />
-                <span className="text-[9px] text-zinc-600 rotate-0">
-                  #{r.roundId}
-                </span>
+                <span className="text-[9px] text-zinc-600">#{r.roundId.toString()}</span>
               </div>
             );
           })}
@@ -65,22 +77,21 @@ export default function StatsPage() {
       {/* Ticket count chart */}
       <div className="border border-zinc-800 bg-zinc-900/50 rounded-xl p-5">
         <h2 className="text-sm font-semibold text-zinc-200 mb-4">
-          Tickets Sold — Last 14 Rounds
+          Tickets Sold — Last {recent.length} Rounds
         </h2>
         <div className="flex items-end gap-1.5 h-28">
-          {recent.map((r) => {
-            const maxT = Math.max(...recent.map(x => x.ticketCount));
-            const pct = (r.ticketCount / maxT) * 100;
+          {[...recent].reverse().map((r) => {
+            const pct = (Number(r.ticketCount) / maxTickets) * 100;
             return (
-              <div key={r.roundId} className="flex-1 flex flex-col items-center gap-1 group">
+              <div key={r.roundId.toString()} className="flex-1 flex flex-col items-center gap-1 group">
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-zinc-400">
-                  {r.ticketCount}
+                  {r.ticketCount.toString()}
                 </div>
                 <div
                   className="w-full rounded-t-sm bg-emerald-700 group-hover:bg-emerald-500 transition-colors"
                   style={{ height: `${Math.max(pct, 4)}%` }}
                 />
-                <span className="text-[9px] text-zinc-600">#{r.roundId}</span>
+                <span className="text-[9px] text-zinc-600">#{r.roundId.toString()}</span>
               </div>
             );
           })}
@@ -102,24 +113,29 @@ export default function StatsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-zinc-800/50">
-              {[...ROUND_STATS].reverse().map((r) => (
-                <tr key={r.roundId} className="hover:bg-zinc-800/30 transition-colors group">
-                  <td className="py-2 font-mono">
-                    <Link
-                      href={`/rounds/${r.roundId}`}
-                      className="text-violet-400 hover:text-violet-300 hover:underline"
-                    >
-                      #{r.roundId}
-                    </Link>
-                  </td>
-                  <td className="py-2 text-right text-zinc-300">{r.ticketCount}</td>
-                  <td className="py-2 text-right text-zinc-300">{r.prizePoolSOL.toFixed(3)} SOL</td>
-                  <td className="py-2 text-right text-emerald-400 font-semibold">
-                    {(r.prizePoolSOL * 0.8).toFixed(3)} SOL
-                  </td>
-                  <td className="py-2 text-right font-mono text-zinc-500">{r.winner}</td>
-                </tr>
-              ))}
+              {history.map((r) => {
+                const poolSOL = Number(r.prizePoolLamports) / 1e9;
+                const winnerPrize = (poolSOL * 0.8).toFixed(4);
+                const winnerShort = r.winner === "—"
+                  ? "—"
+                  : `${r.winner.slice(0, 4)}…${r.winner.slice(-4)}`;
+                return (
+                  <tr key={r.roundId.toString()} className="hover:bg-zinc-800/30 transition-colors group">
+                    <td className="py-2 font-mono">
+                      <Link
+                        href={`/rounds/${r.roundId}`}
+                        className="text-violet-400 hover:text-violet-300 hover:underline"
+                      >
+                        #{r.roundId.toString()}
+                      </Link>
+                    </td>
+                    <td className="py-2 text-right text-zinc-300">{r.ticketCount.toString()}</td>
+                    <td className="py-2 text-right text-zinc-300">{poolSOL.toFixed(4)} SOL</td>
+                    <td className="py-2 text-right text-emerald-400 font-semibold">{winnerPrize} SOL</td>
+                    <td className="py-2 text-right font-mono text-zinc-500">{winnerShort}</td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -129,11 +145,12 @@ export default function StatsPage() {
       <div className="border border-zinc-800 bg-zinc-900/50 rounded-xl p-5">
         <h2 className="text-sm font-semibold text-zinc-200 mb-4">Protocol Revenue (All Time)</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <RevenueCard label="Treasury (5%)"        sol={TOTAL_STATS.totalPrizeSOL * 0.05} color="violet" />
-          <RevenueCard label="Node Operators (15%)" sol={TOTAL_STATS.totalPrizeSOL * 0.15} color="sky" />
-          <RevenueCard label="Winners (80%)"        sol={TOTAL_STATS.totalPrizeSOL * 0.80} color="emerald" />
+          <RevenueCard label="Treasury (5%)"        sol={totalPrizeSOL * 0.05} color="violet" />
+          <RevenueCard label="Node Operators (15%)" sol={totalPrizeSOL * 0.15} color="sky" />
+          <RevenueCard label="Winners (80%)"        sol={totalPrizeSOL * 0.80} color="emerald" />
         </div>
       </div>
+      </>}
       </>}
     </div>
   );
@@ -157,8 +174,7 @@ function RevenueCard({ label, sol, color }: { label: string; sol: number; color:
   return (
     <div className={`border rounded-xl p-4 ${colors[color]}`}>
       <p className="text-xs text-zinc-500 mb-1">{label}</p>
-      <p className="text-lg font-bold">{sol.toFixed(3)} SOL</p>
-      <p className="text-xs text-zinc-600 mt-0.5">${(sol * 65).toFixed(0)} @ $65</p>
+      <p className="text-lg font-bold">{sol.toFixed(4)} SOL</p>
     </div>
   );
 }

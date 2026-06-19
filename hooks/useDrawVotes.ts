@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { Program, AnchorProvider, BorshCoder, utils } from "@coral-xyz/anchor";
 import IDL from "@/lib/idl/pruv_lottery.json";
-import { PROGRAM_ID } from "@/lib/lottery-client";
+import { PROGRAM_ID, u64LE } from "@/lib/lottery-client";
 import type { DrawVoteInfo } from "@/lib/types";
 
 const RPC = process.env.NEXT_PUBLIC_RPC_URL ?? "https://api.devnet.solana.com";
@@ -33,14 +33,10 @@ export function useDrawVotes(roundId: bigint | null | undefined): DrawVoteInfo[]
         const program = new Program(IDL as any, provider);
         const coder = new BorshCoder(IDL as never);
 
-        // Filter: discriminator (8 bytes) + round_id LE u64 (8 bytes)
-        const roundBuf = Buffer.alloc(8);
-        roundBuf.writeBigUInt64LE(roundId as bigint);
-
         const accounts = await conn.getProgramAccounts(PROGRAM_ID, {
           filters: [
             { memcmp: { offset: 0, bytes: utils.bytes.bs58.encode(DRAW_VOTE_DISC) } },
-            { memcmp: { offset: 8, bytes: utils.bytes.bs58.encode(roundBuf) } },
+            { memcmp: { offset: 8, bytes: utils.bytes.bs58.encode(u64LE(roundId as bigint)) } },
           ],
         });
 
