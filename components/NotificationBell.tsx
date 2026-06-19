@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 import { cn } from "@/lib/utils";
-import { getRoundCountdown } from "@/lib/mock";
+import { useLotteryState } from "@/hooks/useLotteryState";
 import { useToast } from "./Toast";
 
 interface Notif {
@@ -22,25 +22,32 @@ export default function NotificationBell() {
   const warned60 = useRef(false);
   const warned30 = useRef(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const lastRoundRef = useRef<bigint | null>(null);
 
-  // Watch countdown and fire notifications
+  const { countdown, round } = useLotteryState();
+
+  // Fire notifications from real chain countdown
   useEffect(() => {
-    const id = setInterval(() => {
-      const ms = getRoundCountdown();
+    if (!round || round.status !== 0) return;
 
-      if (ms < 60000 && ms > 0 && !warned60.current) {
-        warned60.current = true;
-        addNotif("Round closes in 60 seconds!");
-        toast("Round closes in 60 seconds!", "info");
-      }
-      if (ms < 30000 && ms > 0 && !warned30.current) {
-        warned30.current = true;
-        addNotif("Last chance — 30 seconds left!");
-        toast("Last chance — 30 seconds left!", "error");
-      }
-    }, 1000);
-    return () => clearInterval(id);
-  }, [toast]);
+    // Reset warnings when round changes
+    if (lastRoundRef.current !== round.roundId) {
+      lastRoundRef.current = round.roundId;
+      warned60.current = false;
+      warned30.current = false;
+    }
+
+    if (countdown < 60_000 && countdown > 0 && !warned60.current) {
+      warned60.current = true;
+      addNotif("Round closes in 60 seconds!");
+      toast("Round closes in 60 seconds!", "info");
+    }
+    if (countdown < 30_000 && countdown > 0 && !warned30.current) {
+      warned30.current = true;
+      addNotif("Last chance — 30 seconds left!");
+      toast("Last chance — 30 seconds left!", "error");
+    }
+  }, [countdown, round, toast]);
 
   // Close panel on outside click
   useEffect(() => {
