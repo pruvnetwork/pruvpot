@@ -9,6 +9,13 @@ import type { PruvLottery } from "./idl/pruv_lottery";
 export const PROGRAM_ID = new PublicKey("HxoYg9RGSK4J7bbFkuUuPXiJqonKD9g5Dx6FiaBSVpob");
 const DEVNET_RPC = process.env.NEXT_PUBLIC_RPC_URL ?? "https://api.devnet.solana.com";
 
+// Buffer.writeBigUInt64LE is unavailable in browser polyfills — use DataView instead.
+export function u64LE(n: bigint): Buffer {
+  const view = new DataView(new ArrayBuffer(8));
+  view.setBigUint64(0, n, true);
+  return Buffer.from(view.buffer);
+}
+
 export function getLotteryProgram(wallet: AnchorWallet, connection?: Connection) {
   const conn = connection ?? new Connection(DEVNET_RPC, "confirmed");
   const provider = new AnchorProvider(conn, wallet, { commitment: "confirmed" });
@@ -21,27 +28,19 @@ export function getConfigPDA(): [PublicKey, number] {
 }
 
 export function getLotteryStatePDA(roundId: bigint): [PublicKey, number] {
-  const roundBuf = Buffer.alloc(8);
-  roundBuf.writeBigUInt64LE(roundId);
-  return PublicKey.findProgramAddressSync([Buffer.from("lottery"), roundBuf], PROGRAM_ID);
+  return PublicKey.findProgramAddressSync([Buffer.from("lottery"), u64LE(roundId)], PROGRAM_ID);
 }
 
 export function getTicketPDA(roundId: bigint, ticketIndex: bigint): [PublicKey, number] {
-  const roundBuf = Buffer.alloc(8);
-  roundBuf.writeBigUInt64LE(roundId);
-  const idxBuf = Buffer.alloc(8);
-  idxBuf.writeBigUInt64LE(ticketIndex);
   return PublicKey.findProgramAddressSync(
-    [Buffer.from("ticket"), roundBuf, idxBuf],
+    [Buffer.from("ticket"), u64LE(roundId), u64LE(ticketIndex)],
     PROGRAM_ID
   );
 }
 
 export function getWalletCountPDA(roundId: bigint, buyer: PublicKey): [PublicKey, number] {
-  const roundBuf = Buffer.alloc(8);
-  roundBuf.writeBigUInt64LE(roundId);
   return PublicKey.findProgramAddressSync(
-    [Buffer.from("wallet_tickets"), roundBuf, buyer.toBuffer()],
+    [Buffer.from("wallet_tickets"), u64LE(roundId), buyer.toBuffer()],
     PROGRAM_ID
   );
 }
