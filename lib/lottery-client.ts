@@ -23,7 +23,7 @@ export function getConfigPDA(): [PublicKey, number] {
 export function getLotteryStatePDA(roundId: bigint): [PublicKey, number] {
   const roundBuf = Buffer.alloc(8);
   roundBuf.writeBigUInt64LE(roundId);
-  return PublicKey.findProgramAddressSync([Buffer.from("lottery_state"), roundBuf], PROGRAM_ID);
+  return PublicKey.findProgramAddressSync([Buffer.from("lottery"), roundBuf], PROGRAM_ID);
 }
 
 export function getTicketPDA(roundId: bigint, ticketIndex: bigint): [PublicKey, number] {
@@ -41,7 +41,7 @@ export function getWalletCountPDA(roundId: bigint, buyer: PublicKey): [PublicKey
   const roundBuf = Buffer.alloc(8);
   roundBuf.writeBigUInt64LE(roundId);
   return PublicKey.findProgramAddressSync(
-    [Buffer.from("wallet_count"), roundBuf, buyer.toBuffer()],
+    [Buffer.from("wallet_tickets"), roundBuf, buyer.toBuffer()],
     PROGRAM_ID
   );
 }

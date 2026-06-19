@@ -16,14 +16,16 @@ import ShareButton from "@/components/ShareButton";
 import WinnerBanner from "@/components/WinnerBanner";
 import LiveChat from "@/components/LiveChat";
 import { RoundCardSkeleton, NodeSkeleton, Skeleton } from "@/components/Skeleton";
-import { MOCK_ATTESTATION, MOCK_NODES, MOCK_HISTORY } from "@/lib/mock";
+import { MOCK_ATTESTATION, MOCK_NODES } from "@/lib/mock";
 import { formatCountdown } from "@/lib/utils";
 import type { DrawVoteInfo } from "@/lib/types";
 import { buyTicket } from "@/lib/lottery-client";
 import { useLotteryState } from "@/hooks/useLotteryState";
+import { useRoundHistory } from "@/hooks/useRoundHistory";
 
 export default function Home() {
   const { round, countdown, ticketPriceLamports, loading, error } = useLotteryState();
+  const { history, totalPaidLamports, loading: histLoading } = useRoundHistory();
 
   const votes: DrawVoteInfo[] = []; // real votes via DrawVote accounts — future work
   const [winner, setWinner] = useState<string | null>(null);
@@ -90,9 +92,9 @@ export default function Home() {
 
       {/* Stats bar */}
       <StatsBar
-        totalRounds={41}
-        totalPaidSol={2.05}
-        activePlayers={134}
+        totalRounds={Number(round.roundId)}
+        totalPaidSol={Number(totalPaidLamports) / 1e9}
+        activePlayers={Number(round.ticketCount)}
         ticketsSoldToday={Number(round.ticketCount)}
       />
 
@@ -217,7 +219,7 @@ export default function Home() {
             />
           </div>
 
-          <RoundHistory history={MOCK_HISTORY} />
+          <RoundHistory history={history} />
         </div>
 
         {/* Right — trust sidebar + chat */}
