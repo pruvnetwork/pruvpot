@@ -6,12 +6,6 @@ import { useToast } from "./Toast";
 const REF_CODE = "PRUV-9ZWL";
 const REF_LINK = `https://pruvpot.vercel.app/?ref=${REF_CODE}`;
 
-const MOCK_STATS = {
-  invited: 7,
-  ticketsBought: 23,
-  earnedSOL: 0.023,
-};
-
 export default function ReferralCard() {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
@@ -29,22 +23,6 @@ export default function ReferralCard() {
         <span className="text-lg">🔗</span>
         <h3 className="text-sm font-semibold text-violet-300">Refer & Earn</h3>
         <span className="ml-auto text-xs text-zinc-600">0.1% per referred ticket</span>
-      </div>
-
-      {/* Stats row */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-zinc-900/60 rounded-lg p-3 text-center">
-          <p className="text-xl font-bold text-white">{MOCK_STATS.invited}</p>
-          <p className="text-xs text-zinc-500 mt-0.5">Invited</p>
-        </div>
-        <div className="bg-zinc-900/60 rounded-lg p-3 text-center">
-          <p className="text-xl font-bold text-white">{MOCK_STATS.ticketsBought}</p>
-          <p className="text-xs text-zinc-500 mt-0.5">Tickets</p>
-        </div>
-        <div className="bg-zinc-900/60 rounded-lg p-3 text-center">
-          <p className="text-xl font-bold text-emerald-400">{MOCK_STATS.earnedSOL.toFixed(3)}</p>
-          <p className="text-xs text-zinc-500 mt-0.5">SOL Earned</p>
-        </div>
       </div>
 
       {/* Copy link */}
