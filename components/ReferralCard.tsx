@@ -18,29 +18,48 @@ export default function ReferralCard() {
   }
 
   return (
-    <div className="border border-violet-800/50 bg-violet-950/10 rounded-xl p-5 space-y-4">
+    <div
+      className="rounded-xl p-5 space-y-4"
+      style={{
+        background: "rgba(124, 58, 237, 0.05)",
+        border: "1px solid rgba(124, 58, 237, 0.18)",
+        boxShadow: "var(--shadow-card)",
+      }}
+    >
       <div className="flex items-center gap-2">
         <span className="text-lg">🔗</span>
-        <h3 className="text-sm font-semibold text-violet-300">Refer & Earn</h3>
-        <span className="ml-auto text-xs text-zinc-600">0.1% per referred ticket</span>
+        <h3 className="text-sm font-semibold" style={{ color: "var(--purple-primary)" }}>Refer & Earn</h3>
+        <span className="ml-auto text-xs" style={{ color: "var(--text-muted)" }}>0.1% per referred ticket</span>
       </div>
 
       {/* Copy link */}
-      <div className="flex items-center gap-2 bg-zinc-900/60 border border-zinc-800 rounded-lg px-3 py-2">
-        <span className="text-xs font-mono text-zinc-400 flex-1 truncate">{REF_LINK}</span>
+      <div
+        className="flex items-center gap-2 rounded-lg px-3 py-2"
+        style={{
+          background: "var(--surface-secondary)",
+          border: "1px solid var(--border-default)",
+        }}
+      >
+        <span
+          className="text-xs flex-1 truncate"
+          style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}
+        >
+          {REF_LINK}
+        </span>
         <button
           onClick={copyLink}
-          className="shrink-0 text-xs px-3 py-1.5 rounded-md transition-all"
+          className="shrink-0 text-xs px-3 py-1.5 rounded-lg font-medium text-white"
           style={{
-            background: copied ? "rgb(5,150,105)" : "rgb(109,40,217)",
-            color: "white",
+            background: copied ? "var(--success-color)" : "var(--purple-primary)",
+            boxShadow: copied ? "none" : "0 4px 12px rgba(124, 58, 237, 0.25)",
+            transition: "background 200ms ease, box-shadow 200ms ease",
           }}
         >
           {copied ? "Copied ✓" : "Copy"}
         </button>
       </div>
 
-      <p className="text-xs text-zinc-600">
+      <p className="text-xs" style={{ color: "var(--text-muted)" }}>
         Earn 0.1% of every ticket purchase made through your link. Rewards sent automatically on-chain.
       </p>
     </div>
