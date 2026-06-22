@@ -27,7 +27,20 @@ export default function ShareButton({ text, url = "https://pruvpot.vercel.app", 
       <button
         onClick={handleShare}
         title="Share on X"
-        className="w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition-all active:scale-95"
+        className="w-8 h-8 flex items-center justify-center rounded-lg transition-all active:scale-95"
+        style={{
+          background: "rgba(124,58,237,0.12)",
+          border: "1px solid rgba(124,58,237,0.20)",
+          color: "#A855F7",
+        }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLElement).style.background = "rgba(124,58,237,0.22)";
+          (e.currentTarget as HTMLElement).style.color = "#C084FC";
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLElement).style.background = "rgba(124,58,237,0.12)";
+          (e.currentTarget as HTMLElement).style.color = "#A855F7";
+        }}
       >
         <XIcon />
       </button>
@@ -37,7 +50,20 @@ export default function ShareButton({ text, url = "https://pruvpot.vercel.app", 
   return (
     <button
       onClick={handleShare}
-      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-sm font-medium text-zinc-200 transition-all"
+      className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold transition-all active:scale-95"
+      style={{
+        background: "linear-gradient(135deg, rgba(124,58,237,0.18), rgba(37,99,235,0.14))",
+        border: "1px solid rgba(124,58,237,0.25)",
+        color: "#A855F7",
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLElement).style.background = "linear-gradient(135deg, rgba(124,58,237,0.28), rgba(37,99,235,0.22))";
+        (e.currentTarget as HTMLElement).style.boxShadow = "0 0 16px rgba(124,58,237,0.20)";
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLElement).style.background = "linear-gradient(135deg, rgba(124,58,237,0.18), rgba(37,99,235,0.14))";
+        (e.currentTarget as HTMLElement).style.boxShadow = "none";
+      }}
     >
       <XIcon />
       {shared ? "Shared!" : label}

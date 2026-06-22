@@ -76,7 +76,8 @@ export default function Home() {
     <div className="max-w-5xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-3 gap-5 lg:items-start">
       <div className="lg:col-span-2 space-y-4">
         {error ? (
-          <div className="border border-red-900 bg-red-950/30 rounded-2xl p-6 text-red-400 text-sm">
+          <div className="rounded-2xl p-6 text-sm"
+            style={{ background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.20)", color: "#FB7185" }}>
             {error}
           </div>
         ) : (
@@ -123,8 +124,14 @@ export default function Home() {
         <div className="lg:col-span-2 space-y-4">
           {/* Round card */}
           <div
-            className="border border-zinc-800 bg-zinc-900/60 rounded-2xl p-6"
-            style={{ boxShadow: round.status === 0 ? "0 0 40px rgba(139,92,246,0.06)" : "none" }}
+            className="rounded-2xl p-6"
+            style={{
+              background: "var(--bg-surface)",
+              border: "1px solid var(--border)",
+              boxShadow: round.status === 0
+                ? "var(--shadow-md), 0 0 60px rgba(124,58,237,0.08)"
+                : "var(--shadow-sm)",
+            }}
           >
             <div className="flex items-center justify-between mb-6">
               <div className="flex items-center gap-2">
@@ -137,7 +144,7 @@ export default function Home() {
                       : "bg-zinc-500"
                   }`}
                 />
-                <span className="text-sm text-zinc-400">
+                <span className="text-sm" style={{ color: "var(--text-secondary)" }}>
                   {round.status === 0
                     ? "Round Open"
                     : round.status === 1
@@ -145,7 +152,7 @@ export default function Home() {
                     : "Round Closed"}
                 </span>
               </div>
-              <span className="text-xs text-zinc-600 font-mono">
+              <span className="text-xs font-mono" style={{ color: "var(--text-muted)" }}>
                 Round #{round.roundId.toString()}
               </span>
             </div>
@@ -159,20 +166,25 @@ export default function Home() {
             {/* Countdown */}
             {round.status === 0 && (
               <div className="mt-6 text-center">
-                <p className="text-xs text-zinc-600 uppercase tracking-widest mb-2">
+                <p className="text-xs uppercase tracking-widest mb-2 font-semibold" style={{ color: "var(--text-muted)", letterSpacing: "0.15em" }}>
                   Closes in
                 </p>
                 <p
                   className="text-3xl sm:text-4xl font-mono font-bold tabular-nums transition-colors duration-500"
                   style={{
-                    color: countdown < 60000 ? "#f87171" : countdown < 120000 ? "#fbbf24" : "#e4e4e7",
-                    textShadow: countdown < 60000 ? "0 0 20px rgba(248,113,113,0.4)" : "none",
+                    color: countdown < 60000 ? "#FB7185" : countdown < 120000 ? "#FBBF24" : "var(--text-primary)",
+                    textShadow: countdown < 60000
+                      ? "0 0 24px rgba(251,113,133,0.50)"
+                      : countdown < 120000
+                      ? "0 0 24px rgba(251,191,36,0.35)"
+                      : "none",
+                    filter: "drop-shadow(0 0 12px rgba(168,85,247,0.20))",
                   }}
                 >
                   {formatCountdown(countdown)}
                 </p>
                 {countdown < 60000 && (
-                  <p className="text-xs text-red-500 mt-1 animate-pulse">Hurry — round closing soon!</p>
+                  <p className="text-xs mt-1 animate-pulse font-medium" style={{ color: "#FB7185" }}>Hurry — round closing soon!</p>
                 )}
               </div>
             )}
@@ -216,8 +228,9 @@ export default function Home() {
 
             {/* Viral share nudge */}
             {round.status === 0 && (
-              <div className="mt-3 flex items-center justify-between gap-3 px-3 py-2.5 bg-zinc-800/40 rounded-xl border border-zinc-800">
-                <p className="text-xs text-zinc-500">
+              <div className="mt-3 flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl"
+                style={{ background: "rgba(124,58,237,0.06)", border: "1px solid rgba(124,58,237,0.12)" }}>
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
                   More players = bigger jackpot
                 </p>
                 <ShareButton
@@ -254,8 +267,9 @@ export default function Home() {
           />
 
           {/* How it works — compact */}
-          <div className="border border-zinc-800 bg-zinc-900/50 rounded-xl p-4 space-y-2">
-            <h3 className="text-sm font-semibold text-zinc-200">How it works</h3>
+          <div className="rounded-xl p-4 space-y-2"
+            style={{ background: "var(--bg-surface)", border: "1px solid var(--border)" }}>
+            <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>How it works</h3>
             {[
               ["1", "Buy a ticket for 0.01 SOL"],
               ["2", "Round ends at a fixed Solana slot"],
@@ -264,10 +278,11 @@ export default function Home() {
               ["5", "80% prize auto-transferred on-chain"],
             ].map(([n, text]) => (
               <div key={n} className="flex gap-2.5 text-xs">
-                <span className="w-4 h-4 rounded-full bg-zinc-800 text-zinc-500 flex items-center justify-center flex-shrink-0 font-mono text-[10px]">
+                <span className="w-4 h-4 rounded-full flex items-center justify-center flex-shrink-0 font-mono text-[10px]"
+                  style={{ background: "rgba(124,58,237,0.12)", border: "1px solid rgba(124,58,237,0.20)", color: "#A855F7" }}>
                   {n}
                 </span>
-                <span className="text-zinc-500">{text}</span>
+                <span style={{ color: "var(--text-muted)" }}>{text}</span>
               </div>
             ))}
           </div>
@@ -283,10 +298,24 @@ export default function Home() {
             sidebar
           />
 
-          <div className="border border-violet-900 bg-violet-950/30 rounded-xl p-4 text-center">
-            <p className="text-xs text-zinc-500 mb-1">Powered by</p>
-            <p className="text-sm font-bold text-violet-300">PRUV Protocol</p>
-            <p className="text-xs text-zinc-600 mt-1 leading-relaxed">
+          <div className="rounded-xl p-4 text-center"
+            style={{
+              background: "linear-gradient(135deg, rgba(124,58,237,0.10), rgba(37,99,235,0.06))",
+              border: "1px solid rgba(124,58,237,0.20)",
+            }}>
+            <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>Powered by</p>
+            <p
+              className="text-sm font-bold"
+              style={{
+                background: "linear-gradient(135deg, #A855F7, #38BDF8)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              PRUV Protocol
+            </p>
+            <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--text-muted)" }}>
               Verifiable allocation layer for Solana. No trust required.
             </p>
             <a
