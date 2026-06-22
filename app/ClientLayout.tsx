@@ -9,7 +9,7 @@ import { ToastProvider, useToast } from "@/components/Toast";
 
 function Inner({ children }: { children: React.ReactNode }) {
   const { toast } = useToast();
-  const { connected, publicKey, disconnect } = useWallet();
+  const { connected, publicKey } = useWallet();
   const prevConnected = useRef(false);
 
   const walletAddr = publicKey
@@ -25,11 +25,7 @@ function Inner({ children }: { children: React.ReactNode }) {
 
   return (
     <>
-      <Nav
-        connected={connected}
-        walletAddr={walletAddr}
-        onDisconnect={disconnect}
-      />
+      <Nav />
       <main className="flex-1">{children}</main>
       <Footer />
     </>
