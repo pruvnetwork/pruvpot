@@ -116,10 +116,28 @@ body {
 }
 
 /* ─── Scrollbar ──────────────────────────────────────────────────── */
-::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 4px; }
-::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-thumb-hover); }
+* { scrollbar-width: thin; scrollbar-color: var(--scrollbar-thumb) transparent; }
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; border-radius: 999px; }
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, rgba(167,139,250,0.55), rgba(124,58,237,0.38));
+  border-radius: 999px;
+  border: 1.5px solid transparent;
+  background-clip: padding-box;
+  transition: background 200ms ease;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, rgba(167,139,250,0.80), rgba(124,58,237,0.60));
+  background-clip: padding-box;
+}
+.dark ::-webkit-scrollbar-thumb {
+  background: linear-gradient(to bottom, rgba(124,58,237,0.45), rgba(109,40,217,0.30));
+  background-clip: padding-box;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(to bottom, rgba(124,58,237,0.65), rgba(109,40,217,0.50));
+  background-clip: padding-box;
+}
 
 /* ─── Keyframes (kept from original) ────────────────────────────── */
 main > * {
