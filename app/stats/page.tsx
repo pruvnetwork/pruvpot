@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useRoundHistory } from "@/hooks/useRoundHistory";
 import { useLotteryState } from "@/hooks/useLotteryState";
 import { Skeleton } from "@/components/Skeleton";
@@ -19,6 +20,11 @@ export default function StatsPage() {
   const recent = [...history].slice(0, 14);
   const maxPool = Math.max(...recent.map(r => Number(r.prizePoolLamports)), 1);
   const maxTickets = Math.max(...recent.map(r => Number(r.ticketCount)), 1);
+
+  const [animated, setAnimated] = useState(false);
+  useEffect(() => {
+    if (!loading) requestAnimationFrame(() => setAnimated(true));
+  }, [loading]);
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
@@ -55,17 +61,24 @@ export default function StatsPage() {
         <h2 className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
           Prize Pool — Last {recent.length} Rounds
         </h2>
-        <div className="flex items-end gap-1.5 h-36">
+        <div className="flex items-end h-36" style={{ gap: recent.length > 8 ? "4px" : "6px" }}>
           {[...recent].reverse().map((r) => {
             const pct = (Number(r.prizePoolLamports) / maxPool) * 100;
+            const targetH = `${Math.max(pct, 4)}%`;
             return (
               <div key={r.roundId.toString()} className="flex-1 flex flex-col items-center gap-1 group">
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-center pointer-events-none" style={{ color: "var(--text-secondary)" }}>
+                <div className="opacity-0 group-hover:opacity-100 text-xs text-center pointer-events-none" style={{ color: "var(--text-secondary)", transition: "opacity 150ms ease" }}>
                   {(Number(r.prizePoolLamports) / 1e9).toFixed(3)}
                 </div>
                 <div
-                  className="w-full rounded-t-sm bg-violet-500 group-hover:bg-violet-400 transition-colors"
-                  style={{ height: `${Math.max(pct, 4)}%` }}
+                  className="w-full"
+                  style={{
+                    height: animated ? targetH : "0%",
+                    transition: "height 700ms cubic-bezier(0.34, 1.2, 0.64, 1)",
+                    borderRadius: "6px 6px 0 0",
+                    background: "linear-gradient(to top, #6D28D9, #A78BFA)",
+                    boxShadow: "0 -4px 14px rgba(124,58,237,0.28)",
+                  }}
                 />
                 <span className="text-[9px]" style={{ color: "var(--text-muted)" }}>#{r.roundId.toString()}</span>
               </div>
@@ -79,17 +92,24 @@ export default function StatsPage() {
         <h2 className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
           Tickets Sold — Last {recent.length} Rounds
         </h2>
-        <div className="flex items-end gap-1.5 h-28">
+        <div className="flex items-end h-28" style={{ gap: recent.length > 8 ? "4px" : "6px" }}>
           {[...recent].reverse().map((r) => {
             const pct = (Number(r.ticketCount) / maxTickets) * 100;
+            const targetH = `${Math.max(pct, 4)}%`;
             return (
               <div key={r.roundId.toString()} className="flex-1 flex flex-col items-center gap-1 group">
-                <div className="opacity-0 group-hover:opacity-100 transition-opacity text-xs" style={{ color: "var(--text-secondary)" }}>
+                <div className="opacity-0 group-hover:opacity-100 text-xs pointer-events-none" style={{ color: "var(--text-secondary)", transition: "opacity 150ms ease" }}>
                   {r.ticketCount.toString()}
                 </div>
                 <div
-                  className="w-full rounded-t-sm bg-emerald-600 group-hover:bg-emerald-500 transition-colors"
-                  style={{ height: `${Math.max(pct, 4)}%` }}
+                  className="w-full"
+                  style={{
+                    height: animated ? targetH : "0%",
+                    transition: "height 700ms cubic-bezier(0.34, 1.2, 0.64, 1)",
+                    borderRadius: "6px 6px 0 0",
+                    background: "linear-gradient(to top, #059669, #34D399)",
+                    boxShadow: "0 -4px 14px rgba(5,150,105,0.24)",
+                  }}
                 />
                 <span className="text-[9px]" style={{ color: "var(--text-muted)" }}>#{r.roundId.toString()}</span>
               </div>
