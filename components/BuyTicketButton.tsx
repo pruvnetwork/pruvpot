@@ -32,7 +32,7 @@ function getButtonStyle(status: 0 | 1 | 2, connected: boolean, loading: boolean,
       background: "linear-gradient(135deg, #A855F7 0%, #7C3AED 48%, #2563EB 100%)",
       color: "#fff",
       fontWeight: 600,
-      boxShadow: "0 8px 24px rgba(124, 58, 237, 0.20)",
+      boxShadow: "var(--shadow-cta)",
       cursor: "pointer" as const,
       border: "none",
     };
@@ -58,7 +58,7 @@ function getButtonStyle(status: 0 | 1 | 2, connected: boolean, loading: boolean,
     background: "linear-gradient(135deg, #A855F7 0%, #7C3AED 48%, #2563EB 100%)",
     color: "#fff",
     fontWeight: 600,
-    boxShadow: "0 8px 24px rgba(124, 58, 237, 0.20)",
+    boxShadow: "var(--shadow-cta)",
     cursor: "pointer" as const,
     border: "none",
   };
@@ -98,16 +98,16 @@ export default function BuyTicketButton({ status, onBuy, connected }: Props) {
         style={btnStyle}
         onMouseEnter={(e) => {
           if (isActiveBuy) {
-            (e.currentTarget as HTMLElement).style.filter = "brightness(1.04)";
+            (e.currentTarget as HTMLElement).style.filter = "brightness(1.06)";
             (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
-            (e.currentTarget as HTMLElement).style.boxShadow = "0 10px 30px rgba(124, 58, 237, 0.28)";
+            (e.currentTarget as HTMLElement).style.boxShadow = "var(--shadow-cta-hover)";
           }
         }}
         onMouseLeave={(e) => {
           if (isActiveBuy) {
             (e.currentTarget as HTMLElement).style.filter = "";
             (e.currentTarget as HTMLElement).style.transform = "";
-            (e.currentTarget as HTMLElement).style.boxShadow = "0 8px 24px rgba(124, 58, 237, 0.20)";
+            (e.currentTarget as HTMLElement).style.boxShadow = "var(--shadow-cta)";
           }
         }}
       >
