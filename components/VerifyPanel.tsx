@@ -42,47 +42,55 @@ export default function VerifyPanel({ roundId, endSlot, ticketCount }: Props) {
   }
 
   return (
-    <div className="border border-zinc-800 bg-zinc-900/50 rounded-xl p-4">
+    <div
+      className="rounded-xl p-4"
+      style={{
+        background: "var(--surface-primary)",
+        border: "1px solid var(--border-default)",
+        boxShadow: "var(--shadow-card)",
+        transition: "border-color 200ms ease",
+      }}
+    >
       <button
         onClick={() => setOpen(!open)}
         className="w-full flex items-center justify-between"
       >
-        <span className="text-sm font-semibold text-zinc-200">
+        <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
           Verify Randomness Yourself
         </span>
-        <span className="text-xs text-zinc-500">{open ? "▲" : "▼"}</span>
+        <span className="text-xs" style={{ color: "var(--text-muted)" }}>{open ? "▲" : "▼"}</span>
       </button>
 
       {open && (
         <div className="mt-4 space-y-3 text-xs font-mono">
-          <div className="bg-zinc-800/60 rounded-lg p-3 space-y-1">
-            <p className="text-zinc-500">Formula (identical on-chain + off-chain):</p>
-            <p className="text-sky-300">
+          <div className="rounded-lg p-3 space-y-1" style={{ background: "var(--surface-tertiary)", border: "1px solid var(--border-soft)" }}>
+            <p style={{ color: "var(--text-secondary)" }}>Formula (identical on-chain + off-chain):</p>
+            <p style={{ color: "var(--purple-primary)", fontFamily: "var(--font-mono)" }}>
               acc[i] = slotHash[i] ^ slotHash[i+8] ^ slotHash[i+16] ^ slotHash[i+24]
             </p>
-            <p className="text-sky-300">
+            <p style={{ color: "var(--purple-primary)", fontFamily: "var(--font-mono)" }}>
               acc[i] ^= roundId_LE[i] ^ ticketCount_LE[i]
             </p>
-            <p className="text-sky-300">
+            <p style={{ color: "var(--purple-primary)", fontFamily: "var(--font-mono)" }}>
               winner = readU64LE(acc) % ticketCount
             </p>
           </div>
 
-          <div className="bg-zinc-800/60 rounded-lg p-3 space-y-1">
-            <p className="text-zinc-500">Round #{roundId.toString()} inputs:</p>
-            <p className="text-zinc-400">End Slot: {endSlot.toString()}</p>
-            <p className="text-zinc-400">Ticket Count: {ticketCount.toString()}</p>
-            <p className="text-zinc-400">SlotHash: fetched from Solana sysvar at end slot</p>
+          <div className="rounded-lg p-3 space-y-1" style={{ background: "var(--surface-secondary)", border: "1px solid var(--border-default)" }}>
+            <p style={{ color: "var(--text-secondary)" }}>Round #{roundId.toString()} inputs:</p>
+            <p style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>End Slot: {endSlot.toString()}</p>
+            <p style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>Ticket Count: {ticketCount.toString()}</p>
+            <p style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>SlotHash: fetched from Solana sysvar at end slot</p>
           </div>
 
-          <div className="bg-emerald-950/50 border border-emerald-900 rounded-lg p-3">
-            <p className="text-zinc-500 mb-1">Anyone can recompute:</p>
-            <p className="text-emerald-400">
+          <div className="rounded-lg p-3" style={{ background: "rgba(37, 99, 235, 0.06)", border: "1px solid rgba(37, 99, 235, 0.18)" }}>
+            <p className="mb-1" style={{ color: "var(--text-secondary)" }}>Anyone can recompute:</p>
+            <p style={{ color: "var(--blue-primary)", fontFamily: "var(--font-mono)", wordBreak: "break-all" }}>
               $ solana slot-hash {endSlot.toString()} | pruv derive-winner --round {roundId.toString()} --tickets {ticketCount.toString()}
             </p>
           </div>
 
-          <p className="text-zinc-600 leading-relaxed">
+          <p className="leading-relaxed" style={{ color: "var(--text-muted)" }}>
             The slot hash at the end slot is determined by Solana consensus —
             no operator can influence it. PRUV nodes independently compute the
             same index and cast on-chain votes. Finalization only succeeds when

@@ -27,7 +27,21 @@ export default function ShareButton({ text, url = "https://pruvpot.vercel.app", 
       <button
         onClick={handleShare}
         title="Share on X"
-        className="w-8 h-8 flex items-center justify-center rounded-lg bg-zinc-800 hover:bg-zinc-700 text-zinc-400 hover:text-white transition-all active:scale-95"
+        className="w-8 h-8 flex items-center justify-center rounded-lg active:scale-95 transition-all"
+        style={{
+          background: "var(--surface-secondary)",
+          color: "var(--text-muted)",
+          border: "1px solid var(--border-default)",
+          transition: "var(--transition)",
+        }}
+        onMouseEnter={(e) => {
+          (e.currentTarget as HTMLElement).style.background = "var(--surface-hover)";
+          (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
+        }}
+        onMouseLeave={(e) => {
+          (e.currentTarget as HTMLElement).style.background = "var(--surface-secondary)";
+          (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
+        }}
       >
         <XIcon />
       </button>
@@ -37,7 +51,22 @@ export default function ShareButton({ text, url = "https://pruvpot.vercel.app", 
   return (
     <button
       onClick={handleShare}
-      className="flex items-center gap-2 px-4 py-2 rounded-xl bg-zinc-800 hover:bg-zinc-700 active:scale-95 text-sm font-medium text-zinc-200 transition-all"
+      className="flex items-center gap-2 px-4 py-2 rounded-xl active:scale-95 text-sm"
+      style={{
+        background: "var(--surface-primary)",
+        border: "1px solid rgba(124, 58, 237, 0.24)",
+        color: "var(--purple-primary)",
+        fontWeight: 500,
+        transition: "var(--transition)",
+      }}
+      onMouseEnter={(e) => {
+        (e.currentTarget as HTMLElement).style.background = "rgba(124, 58, 237, 0.06)";
+        (e.currentTarget as HTMLElement).style.borderColor = "rgba(124, 58, 237, 0.34)";
+      }}
+      onMouseLeave={(e) => {
+        (e.currentTarget as HTMLElement).style.background = "var(--surface-primary)";
+        (e.currentTarget as HTMLElement).style.borderColor = "rgba(124, 58, 237, 0.24)";
+      }}
     >
       <XIcon />
       {shared ? "Shared!" : label}

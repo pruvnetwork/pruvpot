@@ -9,29 +9,37 @@ interface Props {
 
 export default function RoundHistory({ history }: Props) {
   return (
-    <div className="border border-zinc-800 bg-zinc-900/50 rounded-xl p-4">
-      <h3 className="text-sm font-semibold text-zinc-200 mb-3">Past Rounds</h3>
+    <div
+      className="rounded-xl p-4"
+      style={{
+        background: "var(--surface-primary)",
+        border: "1px solid var(--border-default)",
+        boxShadow: "var(--shadow-card)",
+      }}
+    >
+      <h3 className="text-sm font-semibold mb-3" style={{ color: "var(--text-primary)" }}>Past Rounds</h3>
       <div className="space-y-2">
         {history.map((r) => (
           <div
             key={r.roundId.toString()}
-            className="flex items-center gap-3 p-2 rounded-lg bg-zinc-800/40 text-xs"
+            className="flex items-center gap-3 p-2 rounded-lg text-xs"
+            style={{ background: "var(--surface-secondary)" }}
           >
-            <span className="text-zinc-600 font-mono w-10">#{r.roundId.toString()}</span>
-            <span className="text-zinc-300 font-mono flex-1">
+            <span className="w-10" style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>#{r.roundId.toString()}</span>
+            <span className="flex-1" style={{ color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}>
               {shortenAddress(r.winner)}
             </span>
-            <span className="text-emerald-400 font-semibold">
+            <span style={{ color: "var(--success-color)", fontWeight: 600 }}>
               {lamportsToSol(r.prizePoolLamports)} SOL
             </span>
-            <span className="text-zinc-600">
+            <span style={{ color: "var(--text-muted)" }}>
               {r.ticketCount.toString()} tkts
             </span>
             <a
               href={`https://explorer.solana.com/tx/${r.txSig}?cluster=devnet`}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-sky-600 hover:text-sky-400"
+              style={{ color: "var(--blue-primary)" }}
             >
               ↗
             </a>
