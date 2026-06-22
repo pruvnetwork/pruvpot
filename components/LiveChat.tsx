@@ -123,30 +123,37 @@ export default function LiveChat({
   ).size || 1;
 
   return (
-    <div className="border border-zinc-800 bg-zinc-900/50 rounded-xl overflow-hidden flex flex-col">
+    <div
+      className="rounded-xl overflow-hidden flex flex-col"
+      style={{
+        background: "var(--surface-primary)",
+        border: "1px solid var(--border-default)",
+        boxShadow: "var(--shadow-card)",
+      }}
+    >
       <div
         role={sidebar ? "presentation" : "button"}
         onClick={sidebar ? undefined : () => { setOpen(!open); if (!open) setUnread(0); }}
-        className={cn(
-          "flex items-center justify-between px-4 py-3 w-full",
-          !sidebar && "hover:bg-zinc-800/30 transition-colors cursor-pointer"
-        )}
+        className={cn("flex items-center justify-between px-4 py-3 w-full", !sidebar && "cursor-pointer")}
+        style={{ transition: "background 200ms ease" }}
+        onMouseEnter={(e) => { if (!sidebar) (e.currentTarget as HTMLElement).style.background = "var(--surface-hover)"; }}
+        onMouseLeave={(e) => { if (!sidebar) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
       >
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-zinc-200">Live Chat</span>
-          <span className="flex items-center gap-1 text-xs text-emerald-500">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Live Chat</span>
+          <span className="flex items-center gap-1 text-xs font-medium" style={{ color: "var(--success-color)" }}>
+            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--success-color)" }} />
             {onlineCount} online
           </span>
         </div>
         {!sidebar && (
           <div className="flex items-center gap-2">
             {!open && unread > 0 && (
-              <span className="text-xs bg-violet-600 text-white px-1.5 py-0.5 rounded-full font-semibold">
+              <span className="text-xs text-white px-1.5 py-0.5 rounded-full font-semibold" style={{ background: "var(--purple-primary)" }}>
                 {unread}
               </span>
             )}
-            <span className="text-zinc-600 text-xs">{open ? "▲" : "▼"}</span>
+            <span className="text-xs" style={{ color: "var(--text-muted)" }}>{open ? "▲" : "▼"}</span>
           </div>
         )}
       </div>
@@ -155,16 +162,17 @@ export default function LiveChat({
         <>
           <div
             ref={containerRef}
-            className={cn(
-              "overflow-y-auto px-3 py-2 space-y-1 border-t border-zinc-800/60",
-              sidebar ? "h-72" : "h-56"
-            )}
+            className={cn("overflow-y-auto px-3 py-2 space-y-0.5", sidebar ? "h-72" : "h-56")}
+            style={{ borderTop: "1px solid var(--border-default)" }}
           >
             {msgs.map(m => <ChatLine key={m.id} msg={m} myWallet={myWallet} />)}
           </div>
 
-          <div className="border-t border-zinc-800/60 flex items-center gap-2 px-3 py-2">
-            <span className="text-xs font-mono text-violet-400 shrink-0">
+          <div
+            className="flex items-center gap-2 px-3 py-2"
+            style={{ borderTop: "1px solid var(--border-default)" }}
+          >
+            <span className="text-xs font-mono shrink-0" style={{ color: "var(--purple-primary)", fontFamily: "var(--font-mono)" }}>
               {myWallet ? shortAddr(myWallet) : "guest"}
             </span>
             <input
@@ -174,12 +182,20 @@ export default function LiveChat({
               placeholder={myWallet ? "Say something…" : "Connect wallet to chat"}
               maxLength={120}
               disabled={!myWallet}
-              className="flex-1 bg-transparent text-sm text-zinc-200 placeholder:text-zinc-600 outline-none disabled:opacity-40"
+              className="flex-1 bg-transparent text-sm outline-none disabled:opacity-40"
+              style={{
+                color: "var(--text-primary)",
+                caretColor: "var(--purple-primary)",
+              }}
             />
             <button
               onClick={send}
               disabled={!input.trim() || !myWallet}
-              className="shrink-0 text-xs px-2.5 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-500 disabled:bg-zinc-800 disabled:text-zinc-600 text-white transition-colors"
+              className="shrink-0 text-xs px-2.5 py-1.5 rounded-lg text-white transition-colors"
+              style={{
+                background: (!input.trim() || !myWallet) ? "var(--surface-tertiary)" : "var(--purple-primary)",
+                color: (!input.trim() || !myWallet) ? "var(--text-muted)" : "#fff",
+              }}
             >
               Send
             </button>
@@ -205,26 +221,29 @@ function ChatLine({ msg, myWallet }: { msg: ChatMsg; myWallet: string | null }) 
 
   if (msg.type === "system-win") {
     return (
-      <div className="flex items-center gap-2 px-2 py-1.5 bg-emerald-950/40 border border-emerald-800/50 rounded-lg my-1">
-        <span className="text-xs text-emerald-300 font-semibold flex-1">{msg.text}</span>
-        <span className="text-xs text-zinc-700 shrink-0">{time}</span>
+      <div
+        className="flex items-center gap-2 px-2 py-1.5 rounded-lg my-1"
+        style={{ background: "rgba(5, 150, 105, 0.08)", border: "1px solid rgba(5, 150, 105, 0.18)" }}
+      >
+        <span className="text-xs font-semibold flex-1" style={{ color: "var(--success-color)" }}>{msg.text}</span>
+        <span className="text-xs shrink-0" style={{ color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>{time}</span>
       </div>
     );
   }
   if (msg.type === "system-round") {
     return (
-      <div className="flex items-center gap-2 px-2 py-1 my-0.5">
-        <span className="flex-1 text-xs text-zinc-500 italic">{msg.text}</span>
-        <span className="text-xs text-zinc-700 shrink-0">{time}</span>
+      <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg my-0.5" style={{ background: "var(--surface-secondary)" }}>
+        <span className="flex-1 text-xs" style={{ color: "var(--text-secondary)" }}>{msg.text}</span>
+        <span className="text-xs shrink-0" style={{ color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>{time}</span>
       </div>
     );
   }
   if (msg.type === "system-vote") {
     return (
-      <div className="flex items-center gap-2 px-2 py-0.5 my-0.5">
-        <span className="text-emerald-600 text-xs">⬡</span>
-        <span className="flex-1 text-xs text-zinc-600">{msg.text}</span>
-        <span className="text-xs text-zinc-700 shrink-0">{time}</span>
+      <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg my-0.5" style={{ background: "var(--surface-secondary)" }}>
+        <span className="text-xs" style={{ color: "var(--success-color)" }}>⬡</span>
+        <span className="flex-1 text-xs" style={{ color: "var(--text-secondary)" }}>{msg.text}</span>
+        <span className="text-xs shrink-0" style={{ color: "var(--text-faint)", fontFamily: "var(--font-mono)" }}>{time}</span>
       </div>
     );
   }
@@ -232,17 +251,32 @@ function ChatLine({ msg, myWallet }: { msg: ChatMsg; myWallet: string | null }) 
   const isBuy = msg.type === "system-buy";
   const short = msg.wallet ? `${msg.wallet.slice(0, 4)}…${msg.wallet.slice(-4)}` : "?";
   return (
-    <div className="flex items-start gap-2 px-1 py-0.5 group hover:bg-zinc-800/20 rounded transition-colors">
-      <span className={cn(
-        "font-mono text-xs shrink-0 mt-0.5",
-        isMe ? "text-violet-400" : "text-zinc-500"
-      )}>
+    <div
+      className="flex items-start gap-2 px-2 py-1.5 rounded-lg group"
+      style={{ transition: "background 150ms ease" }}
+      onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.background = "var(--surface-hover)"}
+      onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.background = "transparent"}
+    >
+      <span
+        className="text-xs shrink-0 mt-0.5"
+        style={{
+          color: isMe ? "var(--purple-primary)" : "var(--purple-light)",
+          fontFamily: "var(--font-mono)",
+          fontWeight: isMe ? 600 : 400,
+        }}
+      >
         {short}
       </span>
-      <span className={cn("text-xs flex-1 leading-relaxed", isBuy ? "text-zinc-500" : "text-zinc-300")}>
-        {isBuy ? <><span className="text-zinc-600">🎟️</span> {msg.text}</> : msg.text}
+      <span
+        className="text-xs flex-1 leading-relaxed"
+        style={{ color: isBuy ? "var(--text-secondary)" : "var(--text-primary)" }}
+      >
+        {isBuy ? <>🎟️ {msg.text}</> : msg.text}
       </span>
-      <span className="text-xs text-zinc-700 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity mt-0.5">
+      <span
+        className="text-xs shrink-0 mt-0.5 opacity-0 group-hover:opacity-100"
+        style={{ color: "var(--text-faint)", fontFamily: "var(--font-mono)", transition: "opacity 150ms ease" }}
+      >
         {time}
       </span>
     </div>
