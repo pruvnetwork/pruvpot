@@ -11,88 +11,82 @@ interface Props {
 export default function VerifyPanel({ roundId, endSlot, ticketCount }: Props) {
   const [open, setOpen] = useState(false);
 
+  // Mirror of deriveWinnerIndex from pruv-solana-main/sdk/src/lottery.ts
+  function computeExample() {
+    const exampleHash = new Uint8Array(32).fill(0xab);
+    const ridBuf = new Uint8Array(8);
+    const tcBuf = new Uint8Array(8);
+    const view = new DataView(ridBuf.buffer);
+    // write roundId low 32 bits (demo only — BigInt not fully shown)
+    view.setUint32(0, Number(roundId & 0xffffffffn), true);
+    const view2 = new DataView(tcBuf.buffer);
+    view2.setUint32(0, Number(ticketCount & 0xffffffffn), true);
+    const acc = new Uint8Array(8);
+    for (let i = 0; i < 8; i++) {
+      acc[i] =
+        (exampleHash[i] ^
+          exampleHash[i + 8] ^
+          exampleHash[i + 16] ^
+          exampleHash[i + 24] ^
+          ridBuf[i] ^
+          tcBuf[i]) &
+        0xff;
+    }
+    const result =
+      (acc[0] |
+        (acc[1] << 8) |
+        (acc[2] << 16) |
+        (acc[3] << 24)) >>>
+      0;
+    return (result % Number(ticketCount)).toString();
+  }
+
   return (
-    <div
-      className="rounded-2xl p-4"
-      style={{
-        background: "var(--bg-surface)",
-        border: "1px solid var(--border)",
-        boxShadow: "var(--shadow-sm)",
-      }}
-    >
+    <div className="border border-zinc-800 bg-zinc-900/50 rounded-xl p-4">
       <button
         onClick={() => setOpen(!open)}
-        className="w-full flex items-center justify-between group"
+        className="w-full flex items-center justify-between"
       >
-        <div className="flex items-center gap-2">
-          <div
-            className="w-6 h-6 rounded-lg flex items-center justify-center text-sm"
-            style={{ background: "linear-gradient(135deg, rgba(124,58,237,0.20), rgba(37,99,235,0.15))", border: "1px solid rgba(124,58,237,0.25)" }}
-          >
-            ✓
-          </div>
-          <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>
-            Verify Randomness
-          </span>
-        </div>
-        <span
-          className="text-xs transition-transform duration-200 font-mono"
-          style={{
-            color: "var(--text-muted)",
-            transform: open ? "rotate(180deg)" : "rotate(0deg)",
-            display: "inline-block",
-          }}
-        >
-          ▼
+        <span className="text-sm font-semibold text-zinc-200">
+          Verify Randomness Yourself
         </span>
+        <span className="text-xs text-zinc-500">{open ? "▲" : "▼"}</span>
       </button>
 
       {open && (
         <div className="mt-4 space-y-3 text-xs font-mono">
-          <div
-            className="rounded-xl p-3 space-y-1.5"
-            style={{
-              background: "rgba(124,58,237,0.06)",
-              border: "1px solid rgba(124,58,237,0.15)",
-            }}
-          >
-            <p className="font-sans not-italic text-xs font-medium mb-2" style={{ color: "var(--text-secondary)" }}>
-              Formula (identical on-chain + off-chain):
+          <div className="bg-zinc-800/60 rounded-lg p-3 space-y-1">
+            <p className="text-zinc-500">Formula (identical on-chain + off-chain):</p>
+            <p className="text-sky-300">
+              acc[i] = slotHash[i] ^ slotHash[i+8] ^ slotHash[i+16] ^ slotHash[i+24]
             </p>
-            <p style={{ color: "#A855F7" }}>acc[i] = slotHash[i] ^ slotHash[i+8] ^ slotHash[i+16] ^ slotHash[i+24]</p>
-            <p style={{ color: "#A855F7" }}>acc[i] ^= roundId_LE[i] ^ ticketCount_LE[i]</p>
-            <p style={{ color: "#38BDF8" }}>winner = readU64LE(acc) % ticketCount</p>
+            <p className="text-sky-300">
+              acc[i] ^= roundId_LE[i] ^ ticketCount_LE[i]
+            </p>
+            <p className="text-sky-300">
+              winner = readU64LE(acc) % ticketCount
+            </p>
           </div>
 
-          <div
-            className="rounded-xl p-3 space-y-1"
-            style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}
-          >
-            <p className="font-sans not-italic text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>
-              Round #{roundId.toString()} inputs:
-            </p>
-            <p style={{ color: "var(--text-muted)" }}>End Slot: {endSlot.toString()}</p>
-            <p style={{ color: "var(--text-muted)" }}>Ticket Count: {ticketCount.toString()}</p>
-            <p style={{ color: "var(--text-muted)" }}>SlotHash: fetched from Solana sysvar at end slot</p>
+          <div className="bg-zinc-800/60 rounded-lg p-3 space-y-1">
+            <p className="text-zinc-500">Round #{roundId.toString()} inputs:</p>
+            <p className="text-zinc-400">End Slot: {endSlot.toString()}</p>
+            <p className="text-zinc-400">Ticket Count: {ticketCount.toString()}</p>
+            <p className="text-zinc-400">SlotHash: fetched from Solana sysvar at end slot</p>
           </div>
 
-          <div
-            className="rounded-xl p-3"
-            style={{
-              background: "rgba(37,99,235,0.08)",
-              border: "1px solid rgba(37,99,235,0.20)",
-            }}
-          >
-            <p className="font-sans not-italic text-xs font-medium mb-1.5" style={{ color: "var(--text-secondary)" }}>
-              Anyone can recompute:
-            </p>
-            <p style={{ color: "#38BDF8", wordBreak: "break-all" }}>
+          <div className="bg-emerald-950/50 border border-emerald-900 rounded-lg p-3">
+            <p className="text-zinc-500 mb-1">Anyone can recompute:</p>
+            <p className="text-emerald-400">
               $ solana slot-hash {endSlot.toString()} | pruv derive-winner --round {roundId.toString()} --tickets {ticketCount.toString()}
             </p>
           </div>
 
-          <p className="font-sans not-italic leading-relaxed" style={{ color: "var(--text-muted)" }}>
-            The slot hash is determined by Solana consensus — no operator can influence it. PRUV nodes independently compute the same index and cast on-chain votes. Finalization only succeeds when ≥ 2/3 agree.
+          <p className="text-zinc-600 leading-relaxed">
+            The slot hash at the end slot is determined by Solana consensus —
+            no operator can influence it. PRUV nodes independently compute the
+            same index and cast on-chain votes. Finalization only succeeds when
+            ≥ 2/3 agree.
           </p>
         </div>
       )}
