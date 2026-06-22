@@ -37,8 +37,8 @@ export default function TicketsPage() {
   if (!walletAddress) {
     return (
       <div className="max-w-5xl mx-auto px-4 py-8">
-        <h1 className="text-2xl font-bold text-white mb-4">My Tickets</h1>
-        <div className="border border-zinc-800 bg-zinc-900/50 rounded-xl p-8 text-center text-zinc-500 text-sm">
+        <h1 className="text-2xl font-bold mb-4" style={{ color: "var(--text-primary)" }}>My Tickets</h1>
+        <div className="rounded-xl p-8 text-center text-sm" style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", color: "var(--text-muted)" }}>
           Connect your wallet to view your tickets.
         </div>
       </div>
@@ -49,8 +49,8 @@ export default function TicketsPage() {
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-white">My Tickets</h1>
-        <p className="text-zinc-500 text-sm mt-1 font-mono">
+        <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>My Tickets</h1>
+        <p className="text-sm mt-1" style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
           {walletAddress.slice(0, 6)}…{walletAddress.slice(-6)}
         </p>
       </div>
@@ -77,10 +77,10 @@ export default function TicketsPage() {
 
       {/* Active tickets in current round */}
       {!loading && active.length > 0 && (
-        <div className="border border-violet-800 bg-violet-950/30 rounded-xl p-4">
+        <div className="rounded-xl p-4" style={{ background: "rgba(124,58,237,0.06)", border: "1px solid rgba(124,58,237,0.22)" }}>
           <div className="flex items-center gap-2 mb-3">
-            <span className="w-2 h-2 rounded-full bg-violet-400 animate-pulse" />
-            <span className="text-sm font-semibold text-violet-300">
+            <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: "var(--purple-primary)" }} />
+            <span className="text-sm font-semibold" style={{ color: "var(--purple-primary)" }}>
               {active.length} Active Ticket{active.length > 1 ? "s" : ""} — Round #{currentRoundId.toString()}
             </span>
           </div>
@@ -88,22 +88,23 @@ export default function TicketsPage() {
             {active.map(t => (
               <div
                 key={t.ticketIndex.toString()}
-                className="border border-violet-700 bg-violet-900/30 rounded-lg px-3 py-2 text-center"
+                className="rounded-lg px-3 py-2 text-center"
+                style={{ background: "rgba(124,58,237,0.08)", border: "1px solid rgba(124,58,237,0.24)" }}
               >
-                <p className="text-xs text-violet-400">Ticket</p>
-                <p className="text-lg font-bold text-white">#{t.ticketIndex.toString()}</p>
+                <p className="text-xs" style={{ color: "var(--purple-light)" }}>Ticket</p>
+                <p className="text-lg font-bold" style={{ color: "var(--purple-primary)" }}>#{t.ticketIndex.toString()}</p>
               </div>
             ))}
           </div>
           {currentRoundTicketCount > 0n && (
             <>
-              <p className="text-xs text-zinc-600 mt-3">
+              <p className="text-xs mt-3" style={{ color: "var(--text-muted)" }}>
                 Win probability: {((active.length / Number(currentRoundTicketCount)) * 100).toFixed(1)}% with {active.length} of {currentRoundTicketCount.toString()} tickets
               </p>
-              <div className="mt-2 h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+              <div className="mt-2 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--surface-tertiary)" }}>
                 <div
-                  className="h-full bg-violet-500 rounded-full transition-all duration-700"
-                  style={{ width: `${Math.min((active.length / Number(currentRoundTicketCount)) * 100, 100)}%` }}
+                  className="h-full rounded-full transition-all duration-700"
+                  style={{ width: `${Math.min((active.length / Number(currentRoundTicketCount)) * 100, 100)}%`, background: "var(--purple-primary)" }}
                 />
               </div>
             </>
@@ -116,7 +117,7 @@ export default function TicketsPage() {
 
       {/* Empty state */}
       {!loading && tickets.length === 0 && (
-        <div className="border border-zinc-800 bg-zinc-900/50 rounded-xl p-8 text-center text-zinc-500 text-sm">
+        <div className="rounded-xl p-8 text-center text-sm" style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", color: "var(--text-muted)" }}>
           No tickets found for this wallet.
         </div>
       )}
@@ -130,10 +131,14 @@ export default function TicketsPage() {
               <button
                 key={f}
                 onClick={() => setFilter(f)}
-                className={cn(
-                  "text-xs px-3 py-1.5 rounded-lg capitalize transition-colors",
-                  filter === f ? "bg-violet-600 text-white" : "bg-zinc-800 text-zinc-400 hover:text-zinc-200"
-                )}
+                className="text-xs px-3 py-1.5 rounded-lg capitalize"
+                style={{
+                  background: filter === f ? "var(--purple-primary)" : "var(--surface-secondary)",
+                  color: filter === f ? "#fff" : "var(--text-secondary)",
+                  border: filter === f ? "none" : "1px solid var(--border-default)",
+                  fontWeight: filter === f ? 600 : 400,
+                  transition: "background 200ms ease, color 200ms ease",
+                }}
               >
                 {f} ({count})
               </button>
@@ -142,45 +147,52 @@ export default function TicketsPage() {
         </div>
 
         <div className="space-y-2">
-          {filtered.map((t) => (
-            <div
-              key={`${t.roundId}-${t.ticketIndex}`}
-              className={cn(
-                "flex items-center gap-4 p-4 rounded-xl border text-sm",
-                t.status === "active" ? "border-violet-800 bg-violet-950/20" :
-                t.status === "won"    ? "border-emerald-800 bg-emerald-950/20" :
-                                        "border-zinc-800 bg-zinc-900/40"
-              )}
-            >
-              <div className={cn(
-                "w-2 h-2 rounded-full shrink-0",
-                t.status === "active" ? "bg-violet-400 animate-pulse" :
-                t.status === "won"    ? "bg-emerald-400" : "bg-zinc-600"
-              )} />
+          {filtered.map((t) => {
+            const rowStyle =
+              t.status === "active" ? { background: "rgba(124,58,237,0.06)", border: "1px solid rgba(124,58,237,0.22)" } :
+              t.status === "won"    ? { background: "rgba(5,150,105,0.06)",  border: "1px solid rgba(5,150,105,0.22)" } :
+                                      { background: "var(--surface-secondary)", border: "1px solid var(--border-default)" };
+            return (
+              <div
+                key={`${t.roundId}-${t.ticketIndex}`}
+                className="flex items-center gap-4 p-4 rounded-xl text-sm"
+                style={rowStyle}
+              >
+                <div className={cn("w-2 h-2 rounded-full shrink-0", t.status === "active" && "animate-pulse")}
+                  style={{
+                    background: t.status === "active" ? "var(--purple-primary)" :
+                                t.status === "won"    ? "var(--success-color)" : "var(--text-faint)"
+                  }}
+                />
 
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-mono text-xs text-zinc-500">Round #{t.roundId.toString()}</span>
-                  <span className="text-zinc-600">·</span>
-                  <span className="text-zinc-300">Ticket #{t.ticketIndex.toString()}</span>
-                  {t.status === "won" && (
-                    <span className="text-xs bg-emerald-900 text-emerald-400 px-2 py-0.5 rounded-full font-semibold">
-                      WON {(Number(t.prizeWonLamports) / 1e9).toFixed(3)} SOL
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)", fontSize: "0.75rem" }}>
+                      Round #{t.roundId.toString()}
                     </span>
-                  )}
-                  {t.status === "active" && (
-                    <span className="text-xs bg-violet-900/50 text-violet-400 px-2 py-0.5 rounded-full">
-                      In Play
+                    <span style={{ color: "var(--border-default)" }}>·</span>
+                    <span style={{ color: "var(--text-primary)", fontSize: "0.875rem" }}>
+                      Ticket #{t.ticketIndex.toString()}
                     </span>
-                  )}
+                    {t.status === "won" && (
+                      <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ background: "rgba(5,150,105,0.12)", color: "var(--success-color)", border: "1px solid rgba(5,150,105,0.24)" }}>
+                        WON {(Number(t.prizeWonLamports) / 1e9).toFixed(3)} SOL
+                      </span>
+                    )}
+                    {t.status === "active" && (
+                      <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(124,58,237,0.10)", color: "var(--purple-primary)", border: "1px solid rgba(124,58,237,0.20)" }}>
+                        In Play
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="text-right shrink-0">
+                  <p className="text-xs" style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>-{priceSOL.toFixed(3)} SOL</p>
                 </div>
               </div>
-
-              <div className="text-right shrink-0">
-                <p className="text-xs text-zinc-600">-{priceSOL.toFixed(3)} SOL</p>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </>}
     </div>
@@ -189,9 +201,9 @@ export default function TicketsPage() {
 
 function StatCard({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
-    <div className="border border-zinc-800 bg-zinc-900/50 rounded-xl p-4">
-      <p className="text-xs text-zinc-500 mb-1">{label}</p>
-      <p className={cn("text-xl font-bold", accent ? "text-emerald-400" : "text-white")}>
+    <div className="rounded-xl p-4" style={{ background: "var(--surface-secondary)", border: "1px solid var(--border-default)", boxShadow: "var(--shadow-card)" }}>
+      <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>{label}</p>
+      <p className="text-xl font-bold" style={{ color: accent ? "var(--success-color)" : "var(--text-primary)" }}>
         {value}
       </p>
     </div>
