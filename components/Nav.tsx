@@ -40,9 +40,7 @@ export default function Nav({ connected, walletAddr, onDisconnect }: Props) {
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 shrink-0">
-            <div className="w-7 h-7 bg-violet-600 rounded-lg flex items-center justify-center text-xs font-bold">
-              P
-            </div>
+            <img src="/logo.svg" alt="PRUV" className="w-7 h-7 rounded-lg" />
             <span className="font-semibold text-zinc-100 hidden sm:block">PRUVPOT</span>
             <span className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded-full hidden sm:block">
               devnet
