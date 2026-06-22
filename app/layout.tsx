@@ -40,6 +40,9 @@ export default function RootLayout({
       lang="en"
       className={`${inter.variable} ${jetbrainsMono.variable} ${geistSans.variable} ${geistMono.variable} h-full antialiased dark`}
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: `(function(){var t=localStorage.getItem('theme');if(t==='light'){document.documentElement.classList.remove('dark')}else{document.documentElement.classList.add('dark')}})()` }} />
+      </head>
       <body className="min-h-full flex flex-col" style={{ background: "var(--bg-page)", color: "var(--text-primary)" }}>
         <ClientLayout>{children}</ClientLayout>
       </body>
