@@ -26,7 +26,7 @@ export default function LeaderboardPage() {
 
   return (
     <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
-      <h1 className="text-2xl font-bold text-white">Leaderboard</h1>
+      <h1 className="text-2xl font-bold" style={{ color: "var(--text-primary)" }}>Leaderboard</h1>
 
       {loading && (
         <div className="space-y-4">
@@ -40,7 +40,7 @@ export default function LeaderboardPage() {
       )}
 
       {!loading && entries.length === 0 && (
-        <div className="border border-zinc-800 bg-zinc-900/50 rounded-xl p-8 text-center text-zinc-500 text-sm">
+        <div className="rounded-xl p-8 text-center text-sm" style={{ background: "var(--surface-primary)", border: "1px solid var(--border-default)", color: "var(--text-muted)" }}>
           No ticket holders yet.
         </div>
       )}
@@ -61,10 +61,14 @@ export default function LeaderboardPage() {
             <button
               key={s}
               onClick={() => setSort(s)}
-              className={cn(
-                "text-xs px-3 py-1.5 rounded-lg capitalize transition-colors",
-                sort === s ? "bg-violet-600 text-white" : "bg-zinc-800 text-zinc-400 hover:text-zinc-200"
-              )}
+              className="text-xs px-3 py-1.5 rounded-lg capitalize"
+              style={{
+                background: sort === s ? "var(--purple-primary)" : "var(--surface-secondary)",
+                color: sort === s ? "#fff" : "var(--text-secondary)",
+                border: sort === s ? "none" : "1px solid var(--border-default)",
+                fontWeight: sort === s ? 600 : 400,
+                transition: "background 200ms ease, color 200ms ease",
+              }}
             >
               {s === "tickets" ? "Most Tickets" : s === "spent" ? "Most Spent" : "Most Won"}
             </button>
@@ -72,68 +76,70 @@ export default function LeaderboardPage() {
         </div>
 
         {/* Table */}
-        <div className="border border-zinc-800 bg-zinc-900/50 rounded-xl overflow-hidden">
+        <div className="rounded-xl overflow-hidden" style={{ background: "var(--surface-secondary)", border: "1px solid var(--border-default)", boxShadow: "var(--shadow-panel)" }}>
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-zinc-800 text-xs text-zinc-500">
-                <th className="text-left px-4 py-3 font-medium">Rank</th>
-                <th className="text-left px-4 py-3 font-medium">Wallet</th>
-                <th className="text-right px-4 py-3 font-medium">Tickets</th>
-                <th className="text-right px-4 py-3 font-medium hidden sm:table-cell">Spent</th>
-                <th className="text-right px-4 py-3 font-medium">Won</th>
-                <th className="text-right px-4 py-3 font-medium hidden sm:table-cell">Wins</th>
+              <tr className="text-xs" style={{ borderBottom: "1px solid var(--border-default)", background: "var(--surface-tertiary)" }}>
+                <th className="text-left px-4 py-3 font-medium" style={{ color: "var(--text-muted)" }}>Rank</th>
+                <th className="text-left px-4 py-3 font-medium" style={{ color: "var(--text-muted)" }}>Wallet</th>
+                <th className="text-right px-4 py-3 font-medium" style={{ color: "var(--text-muted)" }}>Tickets</th>
+                <th className="text-right px-4 py-3 font-medium hidden sm:table-cell" style={{ color: "var(--text-muted)" }}>Spent</th>
+                <th className="text-right px-4 py-3 font-medium" style={{ color: "var(--text-muted)" }}>Won</th>
+                <th className="text-right px-4 py-3 font-medium hidden sm:table-cell" style={{ color: "var(--text-muted)" }}>Wins</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-zinc-800/50">
+            <tbody>
               {sorted.map((e) => {
                 const isMe = e.wallet === myWallet;
                 const short = `${e.wallet.slice(0, 4)}…${e.wallet.slice(-4)}`;
                 return (
                   <tr
                     key={e.wallet}
-                    className={cn(
-                      "transition-colors",
-                      isMe ? "bg-violet-950/30" : "hover:bg-zinc-800/30"
-                    )}
+                    style={{
+                      borderTop: "1px solid var(--border-soft)",
+                      background: isMe ? "rgba(124, 58, 237, 0.06)" : "transparent",
+                      transition: "background 150ms ease",
+                    }}
+                    onMouseEnter={(e2) => { if (!isMe) (e2.currentTarget as HTMLElement).style.background = "var(--surface-hover)"; }}
+                    onMouseLeave={(e2) => { if (!isMe) (e2.currentTarget as HTMLElement).style.background = "transparent"; }}
                   >
                     <td className="px-4 py-3">
-                      <span className={cn(
-                        "font-mono font-bold",
-                        e.rank === 1 ? "text-yellow-400" :
-                        e.rank === 2 ? "text-zinc-300" :
-                        e.rank === 3 ? "text-amber-600" : "text-zinc-600"
-                      )}>
-                        {e.rank === 1 ? "🥇" : e.rank === 2 ? "🥈" : e.rank === 3 ? "🥉" : `#${e.rank}`}
+                      <span className="font-mono font-bold">
+                        {e.rank === 1 ? "🥇" : e.rank === 2 ? "🥈" : e.rank === 3 ? "🥉" :
+                          <span style={{ color: "var(--text-muted)" }}>{`#${e.rank}`}</span>}
                       </span>
                     </td>
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
                         <Link
                           href={`/u/${encodeURIComponent(e.wallet)}`}
-                          className="font-mono text-zinc-300 hover:text-violet-400 transition-colors"
+                          className="font-mono transition-colors"
+                          style={{ color: "var(--text-primary)", fontFamily: "var(--font-mono)" }}
+                          onMouseEnter={(el) => (el.currentTarget as HTMLElement).style.color = "var(--purple-primary)"}
+                          onMouseLeave={(el) => (el.currentTarget as HTMLElement).style.color = "var(--text-primary)"}
                         >
                           {short}
                         </Link>
                         {isMe && (
-                          <span className="text-[10px] bg-violet-800 text-violet-300 px-1.5 py-0.5 rounded-full">
+                          <span className="text-[10px] px-1.5 py-0.5 rounded-full font-medium" style={{ background: "rgba(124,58,237,0.12)", color: "var(--purple-primary)", border: "1px solid rgba(124,58,237,0.20)" }}>
                             you
                           </span>
                         )}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-right font-semibold text-zinc-200">
+                    <td className="px-4 py-3 text-right font-semibold" style={{ color: "var(--text-primary)", fontVariantNumeric: "tabular-nums" }}>
                       {e.totalTickets}
                     </td>
-                    <td className="px-4 py-3 text-right text-zinc-400 hidden sm:table-cell">
+                    <td className="px-4 py-3 text-right hidden sm:table-cell" style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>
                       {(Number(e.totalSpentLamports) / 1e9).toFixed(3)} SOL
                     </td>
-                    <td className="px-4 py-3 text-right font-semibold text-emerald-400">
+                    <td className="px-4 py-3 text-right font-semibold" style={{ color: "var(--success-color)", fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>
                       {e.totalWonLamports > 0n
                         ? `${(Number(e.totalWonLamports) / 1e9).toFixed(3)} SOL`
-                        : "—"}
+                        : <span style={{ color: "var(--text-faint)" }}>—</span>}
                     </td>
-                    <td className="px-4 py-3 text-right text-zinc-500 hidden sm:table-cell">
-                      {e.wins > 0 ? `${e.wins}x` : "—"}
+                    <td className="px-4 py-3 text-right hidden sm:table-cell" style={{ color: "var(--text-muted)", fontVariantNumeric: "tabular-nums" }}>
+                      {e.wins > 0 ? `${e.wins}x` : <span style={{ color: "var(--text-faint)" }}>—</span>}
                     </td>
                   </tr>
                 );
@@ -144,29 +150,29 @@ export default function LeaderboardPage() {
 
         {/* My position callout */}
         {myEntry && (
-          <div className="border border-violet-800 bg-violet-950/20 rounded-xl p-4 flex items-center justify-between gap-4 flex-wrap">
+          <div className="rounded-xl p-4 flex items-center justify-between gap-4 flex-wrap" style={{ background: "rgba(124,58,237,0.06)", border: "1px solid rgba(124,58,237,0.18)" }}>
             <div>
-              <p className="text-xs text-zinc-500 mb-0.5">Your Position</p>
-              <p className="font-semibold text-violet-300">
+              <p className="text-xs mb-0.5" style={{ color: "var(--text-muted)" }}>Your Position</p>
+              <p className="font-semibold" style={{ color: "var(--purple-primary)" }}>
                 #{myEntry.rank} · {myWallet.slice(0, 4)}…{myWallet.slice(-4)}
               </p>
             </div>
             <div className="flex gap-6 text-sm">
               <div className="text-center">
-                <p className="text-zinc-500 text-xs">Tickets</p>
-                <p className="font-bold text-white">{myEntry.totalTickets}</p>
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>Tickets</p>
+                <p className="font-bold" style={{ color: "var(--text-primary)" }}>{myEntry.totalTickets}</p>
               </div>
               <div className="text-center">
-                <p className="text-zinc-500 text-xs">Won</p>
-                <p className="font-bold text-emerald-400">
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>Won</p>
+                <p className="font-bold" style={{ color: "var(--success-color)" }}>
                   {myEntry.totalWonLamports > 0n
                     ? `${(Number(myEntry.totalWonLamports) / 1e9).toFixed(3)} SOL`
                     : "—"}
                 </p>
               </div>
               <div className="text-center">
-                <p className="text-zinc-500 text-xs">Wins</p>
-                <p className="font-bold text-white">{myEntry.wins > 0 ? `${myEntry.wins}x` : "—"}</p>
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>Wins</p>
+                <p className="font-bold" style={{ color: "var(--text-primary)" }}>{myEntry.wins > 0 ? `${myEntry.wins}x` : "—"}</p>
               </div>
             </div>
           </div>
