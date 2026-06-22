@@ -36,7 +36,7 @@ export default function ReferralCard() {
       <div
         className="flex items-center gap-2 rounded-lg px-3 py-2"
         style={{
-          background: "var(--surface-secondary)",
+          background: "var(--bg-page)",
           border: "1px solid var(--border-default)",
         }}
       >
