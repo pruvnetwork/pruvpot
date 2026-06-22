@@ -6,6 +6,7 @@ import { useState } from "react";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { cn } from "@/lib/utils";
 import NotificationBell from "./NotificationBell";
+import ThemeToggle from "./ThemeToggle";
 
 const links = [
   { href: "/",            label: "Lottery",      icon: "◈" },
@@ -36,13 +37,27 @@ export default function Nav({ connected, walletAddr, onDisconnect }: Props) {
 
   return (
     <>
-      <header className="border-b border-zinc-800 bg-zinc-950/90 backdrop-blur sticky top-0 z-50">
+      <header
+        className="backdrop-blur sticky top-0 z-50"
+        style={{
+          background: "var(--nav-bg)",
+          borderBottom: "1px solid var(--nav-border)",
+        }}
+      >
         <div className="max-w-5xl mx-auto px-4 h-14 flex items-center justify-between gap-4">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2.5 shrink-0">
             <img src="/logo.svg" alt="PRUV" className="w-6 h-6" />
-            <span className="font-semibold text-zinc-100 hidden sm:block">PRUVPOT</span>
-            <span className="text-[10px] bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded-full hidden sm:block">
+            <span
+              className="font-bold text-sm hidden sm:block tracking-tight"
+              style={{ color: "var(--text-primary)", letterSpacing: "-0.02em", fontFamily: "var(--font-body)" }}
+            >
+              PRUVPOT
+            </span>
+            <span
+              className="text-[10px] font-medium px-2 py-0.5 rounded-full hidden sm:block"
+              style={{ background: "var(--surface-secondary)", border: "1px solid var(--border-default)", color: "var(--text-muted)" }}
+            >
               devnet
             </span>
           </Link>
@@ -53,12 +68,28 @@ export default function Nav({ connected, walletAddr, onDisconnect }: Props) {
               <Link
                 key={l.href}
                 href={l.href}
-                className={cn(
-                  "text-sm px-3 py-1.5 rounded-lg transition-colors",
-                  path === l.href
-                    ? "bg-violet-600/20 text-violet-300"
-                    : "text-zinc-500 hover:text-zinc-200 hover:bg-zinc-800/60"
-                )}
+                className="text-sm px-3 py-1.5 rounded-lg"
+                style={{
+                  color: path === l.href ? "var(--purple-dark)" : "var(--text-muted)",
+                  background: path === l.href ? "rgba(124, 58, 237, 0.10)" : "transparent",
+                  border: path === l.href ? "1px solid rgba(124, 58, 237, 0.16)" : "1px solid transparent",
+                  boxShadow: path === l.href ? "0 4px 12px rgba(124, 58, 237, 0.08)" : "none",
+                  fontWeight: 500,
+                  letterSpacing: "-0.01em",
+                  transition: "var(--transition)",
+                }}
+                onMouseEnter={(e) => {
+                  if (path !== l.href) {
+                    (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
+                    (e.currentTarget as HTMLElement).style.background = "var(--surface-hover)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (path !== l.href) {
+                    (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
+                    (e.currentTarget as HTMLElement).style.background = "transparent";
+                  }
+                }}
               >
                 {l.label}
               </Link>
@@ -70,13 +101,21 @@ export default function Nav({ connected, walletAddr, onDisconnect }: Props) {
             {profileHref ? (
               <Link
                 href={profileHref}
-                className={cn(
-                  "hidden md:flex w-7 h-7 rounded-full items-center justify-center transition-colors shrink-0",
-                  path.startsWith("/u/")
-                    ? "bg-violet-600 text-white"
-                    : "bg-zinc-800 text-zinc-400 hover:bg-violet-700 hover:text-white"
-                )}
+                className="hidden md:flex w-7 h-7 rounded-full items-center justify-center shrink-0"
+                style={{
+                  background: path.startsWith("/u/") ? "var(--purple-primary)" : "var(--surface-secondary)",
+                  color: path.startsWith("/u/") ? "#fff" : "var(--text-muted)",
+                  transition: "var(--transition)",
+                }}
                 title="My Profile"
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "var(--purple-primary)";
+                  (e.currentTarget as HTMLElement).style.color = "#fff";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = path.startsWith("/u/") ? "var(--purple-primary)" : "var(--surface-secondary)";
+                  (e.currentTarget as HTMLElement).style.color = path.startsWith("/u/") ? "#fff" : "var(--text-muted)";
+                }}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                   <circle cx="12" cy="8" r="4" />
@@ -84,13 +123,19 @@ export default function Nav({ connected, walletAddr, onDisconnect }: Props) {
                 </svg>
               </Link>
             ) : (
-              <span className="hidden md:flex w-7 h-7 rounded-full items-center justify-center bg-zinc-800/40 text-zinc-600 shrink-0">
+              <span
+                className="hidden md:flex w-7 h-7 rounded-full items-center justify-center shrink-0"
+                style={{ background: "var(--surface-secondary)", color: "var(--text-faint)" }}
+              >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor">
                   <circle cx="12" cy="8" r="4" />
                   <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
                 </svg>
               </span>
             )}
+
+            {/* Theme toggle */}
+            <ThemeToggle />
 
             {/* Notification bell */}
             <NotificationBell />
@@ -99,17 +144,49 @@ export default function Nav({ connected, walletAddr, onDisconnect }: Props) {
             {connected ? (
               <button
                 onClick={onDisconnect}
-                className="text-xs sm:text-sm px-3 py-1.5 rounded-lg transition-all shrink-0 bg-zinc-800 text-zinc-300 border border-zinc-700 hover:border-red-800 hover:text-red-400"
+                className="text-xs sm:text-sm px-3 py-1.5 rounded-lg shrink-0"
+                style={{
+                  background: "var(--surface-secondary)",
+                  color: "var(--text-secondary)",
+                  border: "1px solid var(--border-default)",
+                  transition: "var(--transition)",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.borderColor = "rgba(225, 29, 72, 0.30)";
+                  (e.currentTarget as HTMLElement).style.color = "var(--danger-color)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.borderColor = "var(--border-default)";
+                  (e.currentTarget as HTMLElement).style.color = "var(--text-secondary)";
+                }}
               >
                 <span className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--success-color)" }} />
                   {walletAddr}
                 </span>
               </button>
             ) : (
               <button
                 onClick={() => setWalletModal(true)}
-                className="text-xs sm:text-sm px-3 py-1.5 rounded-lg transition-all shrink-0 bg-violet-600 hover:bg-violet-500 active:scale-95 text-white"
+                className="text-xs sm:text-sm px-3 py-1.5 rounded-lg shrink-0"
+                style={{
+                  background: "linear-gradient(135deg, #A855F7 0%, #7C3AED 48%, #2563EB 100%)",
+                  color: "#fff",
+                  fontWeight: 600,
+                  boxShadow: "0 6px 20px rgba(124, 58, 237, 0.18)",
+                  border: "none",
+                  transition: "var(--transition)",
+                }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.filter = "brightness(1.04)";
+                  (e.currentTarget as HTMLElement).style.transform = "translateY(-1px)";
+                  (e.currentTarget as HTMLElement).style.boxShadow = "0 8px 26px rgba(124, 58, 237, 0.26)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.filter = "";
+                  (e.currentTarget as HTMLElement).style.transform = "";
+                  (e.currentTarget as HTMLElement).style.boxShadow = "0 6px 20px rgba(124, 58, 237, 0.18)";
+                }}
               >
                 Connect
               </button>
@@ -118,12 +195,15 @@ export default function Nav({ connected, walletAddr, onDisconnect }: Props) {
             {/* Mobile hamburger */}
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="md:hidden w-8 h-8 flex flex-col items-center justify-center gap-1.5 rounded-lg hover:bg-zinc-800 transition-colors"
+              className="md:hidden w-8 h-8 flex flex-col items-center justify-center gap-1.5 rounded-lg transition-colors"
+              style={{ color: "var(--text-muted)" }}
+              onMouseEnter={(e) => (e.currentTarget as HTMLElement).style.background = "var(--surface-secondary)"}
+              onMouseLeave={(e) => (e.currentTarget as HTMLElement).style.background = "transparent"}
               aria-label="Menu"
             >
-              <span className={cn("block w-5 h-0.5 bg-zinc-400 transition-all", menuOpen && "rotate-45 translate-y-2")} />
-              <span className={cn("block w-5 h-0.5 bg-zinc-400 transition-all", menuOpen && "opacity-0")} />
-              <span className={cn("block w-5 h-0.5 bg-zinc-400 transition-all", menuOpen && "-rotate-45 -translate-y-2")} />
+              <span className={cn("block w-5 h-0.5 transition-all", menuOpen && "rotate-45 translate-y-2")} style={{ background: "currentColor" }} />
+              <span className={cn("block w-5 h-0.5 transition-all", menuOpen && "opacity-0")} style={{ background: "currentColor" }} />
+              <span className={cn("block w-5 h-0.5 transition-all", menuOpen && "-rotate-45 -translate-y-2")} style={{ background: "currentColor" }} />
             </button>
           </div>
         </div>
@@ -131,45 +211,50 @@ export default function Nav({ connected, walletAddr, onDisconnect }: Props) {
 
       {/* Mobile dropdown */}
       {menuOpen && (
-        <div className="md:hidden fixed inset-0 top-14 z-40 bg-zinc-950/95 backdrop-blur">
+        <div
+          className="md:hidden fixed inset-0 top-14 z-40 backdrop-blur"
+          style={{ background: "var(--nav-bg)" }}
+        >
           <nav className="flex flex-col p-4 gap-1">
             {links.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
                 onClick={() => setMenuOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm transition-colors",
-                  path === l.href
-                    ? "bg-violet-600/20 text-violet-300 border border-violet-800/50"
-                    : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
-                )}
+                className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm"
+                style={{
+                  color: path === l.href ? "var(--purple-dark)" : "var(--text-muted)",
+                  background: path === l.href ? "rgba(124, 58, 237, 0.10)" : "transparent",
+                  border: path === l.href ? "1px solid rgba(124, 58, 237, 0.16)" : "1px solid transparent",
+                  transition: "var(--transition)",
+                }}
               >
                 <span className="text-lg">{l.icon}</span>
                 {l.label}
-                {path === l.href && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400" />}
+                {path === l.href && <span className="ml-auto w-1.5 h-1.5 rounded-full" style={{ background: "var(--purple-primary)" }} />}
               </Link>
             ))}
             {profileHref ? (
               <Link
                 href={profileHref}
                 onClick={() => setMenuOpen(false)}
-                className={cn(
-                  "flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm transition-colors",
-                  path.startsWith("/u/")
-                    ? "bg-violet-600/20 text-violet-300 border border-violet-800/50"
-                    : "text-zinc-400 hover:text-zinc-200 hover:bg-zinc-800/60"
-                )}
+                className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm"
+                style={{
+                  color: path.startsWith("/u/") ? "var(--purple-dark)" : "var(--text-muted)",
+                  background: path.startsWith("/u/") ? "rgba(124, 58, 237, 0.10)" : "transparent",
+                  border: path.startsWith("/u/") ? "1px solid rgba(124, 58, 237, 0.16)" : "1px solid transparent",
+                  transition: "var(--transition)",
+                }}
               >
                 <span className="text-lg">◎</span>
                 My Profile
-                {path.startsWith("/u/") && <span className="ml-auto w-1.5 h-1.5 rounded-full bg-violet-400" />}
+                {path.startsWith("/u/") && <span className="ml-auto w-1.5 h-1.5 rounded-full" style={{ background: "var(--purple-primary)" }} />}
               </Link>
             ) : (
-              <div className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm text-zinc-600">
+              <div className="flex items-center gap-3 px-4 py-3.5 rounded-xl text-sm" style={{ color: "var(--text-faint)" }}>
                 <span className="text-lg">◎</span>
                 My Profile
-                <span className="ml-auto text-xs text-zinc-700">connect wallet</span>
+                <span className="ml-auto text-xs" style={{ color: "var(--text-faint)" }}>connect wallet</span>
               </div>
             )}
           </nav>
@@ -183,14 +268,27 @@ export default function Nav({ connected, walletAddr, onDisconnect }: Props) {
           onClick={() => setWalletModal(false)}
         >
           <div
-            className="w-full max-w-sm bg-zinc-900 border border-zinc-800 rounded-2xl p-6 space-y-4"
+            className="w-full max-w-sm rounded-2xl p-6 space-y-4"
+            style={{
+              background: "var(--surface-primary)",
+              border: "1px solid var(--border-default)",
+            }}
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <h2 className="text-base font-semibold text-zinc-100">Connect Wallet</h2>
+              <h2 className="text-base font-semibold" style={{ color: "var(--text-primary)" }}>Connect Wallet</h2>
               <button
                 onClick={() => setWalletModal(false)}
-                className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-zinc-800 text-zinc-500 hover:text-zinc-200 transition-colors text-lg"
+                className="w-7 h-7 flex items-center justify-center rounded-lg text-lg transition-colors"
+                style={{ color: "var(--text-muted)" }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "var(--surface-secondary)";
+                  (e.currentTarget as HTMLElement).style.color = "var(--text-primary)";
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = "transparent";
+                  (e.currentTarget as HTMLElement).style.color = "var(--text-muted)";
+                }}
               >
                 ×
               </button>
@@ -198,13 +296,14 @@ export default function Nav({ connected, walletAddr, onDisconnect }: Props) {
 
             <div className="space-y-2">
               {wallets.length === 0 ? (
-                <p className="text-sm text-zinc-500 text-center py-4">
+                <p className="text-sm text-center py-4" style={{ color: "var(--text-muted)" }}>
                   No wallets detected.{" "}
                   <a
                     href="https://phantom.app"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-violet-400 hover:underline"
+                    style={{ color: "var(--purple-primary)" }}
+                    className="hover:underline"
                   >
                     Install Phantom ↗
                   </a>
@@ -214,19 +313,33 @@ export default function Nav({ connected, walletAddr, onDisconnect }: Props) {
                   <button
                     key={w.adapter.name}
                     onClick={() => handleSelectWallet(w.adapter.name)}
-                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl bg-zinc-800/60 hover:bg-zinc-700/60 border border-zinc-700/50 hover:border-zinc-600 transition-colors"
+                    className="w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-colors"
+                    style={{
+                      background: "var(--surface-secondary)",
+                      border: "1px solid var(--border-default)",
+                      color: "var(--text-primary)",
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.background = "var(--surface-hover)";
+                      (e.currentTarget as HTMLElement).style.borderColor = "var(--border-accent)";
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.background = "var(--surface-secondary)";
+                      (e.currentTarget as HTMLElement).style.borderColor = "var(--border-default)";
+                    }}
                   >
                     {w.adapter.icon && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={w.adapter.icon} alt={w.adapter.name} className="w-6 h-6 rounded-md" />
                     )}
-                    <span className="text-sm font-medium text-zinc-200">{w.adapter.name}</span>
-                    <span className={cn(
-                      "ml-auto text-xs px-2 py-0.5 rounded-full",
-                      w.readyState === "Installed"
-                        ? "bg-emerald-900/50 text-emerald-400"
-                        : "bg-zinc-700 text-zinc-500"
-                    )}>
+                    <span className="text-sm font-medium">{w.adapter.name}</span>
+                    <span
+                      className={cn("ml-auto text-xs px-2 py-0.5 rounded-full")}
+                      style={w.readyState === "Installed"
+                        ? { background: "rgba(5, 150, 105, 0.12)", color: "var(--success-color)" }
+                        : { background: "var(--surface-tertiary)", color: "var(--text-muted)" }
+                      }
+                    >
                       {w.readyState === "Installed" ? "Detected" : "Not installed"}
                     </span>
                   </button>
@@ -234,7 +347,7 @@ export default function Nav({ connected, walletAddr, onDisconnect }: Props) {
               )}
             </div>
 
-            <p className="text-xs text-zinc-600 text-center">
+            <p className="text-xs text-center" style={{ color: "var(--text-muted)" }}>
               Connecting to Solana devnet
             </p>
           </div>

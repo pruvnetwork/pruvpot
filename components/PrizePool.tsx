@@ -16,12 +16,20 @@ export default function PrizePool({ prizePoolLamports, ticketCount, ticketPriceS
 
   return (
     <div className="text-center">
-      <p className="text-zinc-500 text-xs uppercase tracking-widest mb-1">Prize Pool</p>
-      <p className="text-4xl sm:text-5xl font-bold text-white tabular-nums" style={{ textShadow: "0 0 40px rgba(139,92,246,0.25)" }}>
+      <p className="text-xs uppercase tracking-widest mb-1" style={{ color: "var(--text-muted)", fontWeight: 500, letterSpacing: "0.04em" }}>Prize Pool</p>
+      <p
+        className="text-4xl sm:text-5xl font-bold tabular-nums"
+        style={{
+          color: "var(--text-primary)",
+          letterSpacing: "-0.04em",
+          fontVariantNumeric: "tabular-nums",
+          textShadow: "none",
+        }}
+      >
         <AnimatedNumber value={total} decimals={3} />
-        <span className="text-xl sm:text-2xl text-zinc-400 ml-1">SOL</span>
+        <span className="text-xl sm:text-2xl ml-1" style={{ color: "var(--purple-primary)", fontWeight: 600 }}>SOL</span>
       </p>
-      <p className="text-zinc-500 text-xs sm:text-sm mt-1">
+      <p className="text-xs sm:text-sm mt-1" style={{ color: "var(--text-muted)", fontWeight: 400 }}>
         {ticketCount.toString()} tickets · {ticketPriceSol} SOL each
       </p>
 
@@ -34,6 +42,27 @@ export default function PrizePool({ prizePoolLamports, ticketCount, ticketPriceS
   );
 }
 
+const pillStyles = {
+  emerald: {
+    bg: "rgba(168, 85, 247, 0.055)",
+    border: "1px solid rgba(168, 85, 247, 0.20)",
+    pctColor: "var(--purple-primary)",
+    solColor: "var(--purple-light)",
+  },
+  sky: {
+    bg: "rgba(37, 99, 235, 0.055)",
+    border: "1px solid rgba(37, 99, 235, 0.20)",
+    pctColor: "var(--blue-primary)",
+    solColor: "var(--blue-light)",
+  },
+  zinc: {
+    bg: "rgba(99, 102, 241, 0.045)",
+    border: "1px solid rgba(99, 102, 241, 0.17)",
+    pctColor: "#6366F1",
+    solColor: "#818CF8",
+  },
+};
+
 function SharePill({
   label,
   value,
@@ -45,17 +74,13 @@ function SharePill({
   pct: number;
   color: "emerald" | "sky" | "zinc";
 }) {
-  const colors = {
-    emerald: "bg-emerald-950 border-emerald-800 text-emerald-300",
-    sky: "bg-sky-950 border-sky-800 text-sky-300",
-    zinc: "bg-zinc-800 border-zinc-700 text-zinc-300",
-  };
+  const s = pillStyles[color];
 
   return (
-    <div className={`border rounded-lg px-3 py-1.5 text-center ${colors[color]}`}>
-      <p className="text-xs text-zinc-500">{label}</p>
-      <p className="text-sm font-semibold">{pct}%</p>
-      <p className="text-xs font-mono">
+    <div className="rounded-lg px-3 py-1.5 text-center" style={{ background: s.bg, border: s.border }}>
+      <p className="text-xs" style={{ color: "var(--text-muted)" }}>{label}</p>
+      <p className="text-sm font-bold" style={{ color: s.pctColor, fontVariantNumeric: "tabular-nums" }}>{pct}%</p>
+      <p className="text-xs" style={{ color: s.solColor, fontFamily: "var(--font-mono)", fontVariantNumeric: "tabular-nums" }}>
         <AnimatedNumber value={value} decimals={3} /> SOL
       </p>
     </div>

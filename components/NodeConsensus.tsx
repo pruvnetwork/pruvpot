@@ -14,10 +14,17 @@ export default function NodeConsensus({ nodes, votes, required, status }: Props)
   const votedSet = new Set(votes.map((v) => v.nodePubkey));
 
   return (
-    <div className="border border-zinc-800 bg-zinc-900/50 rounded-xl p-4">
+    <div
+      className="rounded-xl p-4"
+      style={{
+        background: "var(--surface-primary)",
+        border: "1px solid var(--border-default)",
+        boxShadow: "var(--shadow-card)",
+      }}
+    >
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-zinc-200">Node Consensus</h3>
-        <span className="text-xs text-zinc-500">
+        <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Node Consensus</h3>
+        <span className="text-xs" style={{ color: "var(--text-muted)" }}>
           {votes.length}/{required} required (2/3 threshold)
         </span>
       </div>
@@ -30,25 +37,28 @@ export default function NodeConsensus({ nodes, votes, required, status }: Props)
           return (
             <div
               key={node.operatorPubkey}
-              className="flex items-center gap-3 p-2 rounded-lg bg-zinc-800/40"
+              className="flex items-center gap-3 p-2 rounded-lg"
+              style={{ background: "var(--surface-secondary)", border: "1px solid var(--border-soft)" }}
             >
               <div
                 className={`w-2 h-2 rounded-full flex-shrink-0 ${
-                  voted
-                    ? "bg-emerald-400 shadow-[0_0_6px_rgba(52,211,153,0.8)]"
-                    : status === 0
-                    ? "bg-zinc-600"
-                    : "bg-yellow-500 animate-pulse"
+                  !voted && status === 1 ? "bg-yellow-500 animate-pulse" : ""
                 }`}
+                style={voted
+                  ? { background: "var(--success-color)", boxShadow: "0 0 6px rgba(52,211,153,0.8)" }
+                  : status === 0
+                  ? { background: "var(--text-faint)" }
+                  : undefined
+                }
               />
-              <span className="text-xs font-mono text-zinc-400 flex-1">
+              <span className="text-xs flex-1" style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
                 {shortenAddress(node.operatorPubkey)}
               </span>
-              <span className="text-xs text-zinc-600">
+              <span className="text-xs" style={{ color: "var(--text-muted)" }}>
                 Rep {node.reputation}
               </span>
               {voted && vote && (
-                <span className="text-xs font-mono text-emerald-500">
+                <span className="text-xs" style={{ color: "var(--success-color)", fontFamily: "var(--font-mono)" }}>
                   → ticket #{vote.winnerIndex.toString()}
                 </span>
               )}
@@ -61,15 +71,15 @@ export default function NodeConsensus({ nodes, votes, required, status }: Props)
       </div>
 
       {status === 2 && (
-        <div className="mt-3 p-2 bg-emerald-950/50 border border-emerald-800 rounded-lg text-center">
-          <p className="text-xs text-emerald-400">
+        <div className="mt-3 p-2 rounded-lg text-center" style={{ background: "rgba(5, 150, 105, 0.08)", border: "1px solid rgba(5, 150, 105, 0.20)" }}>
+          <p className="text-xs" style={{ color: "var(--success-color)" }}>
             Consensus reached — winner derived from SlotHash XOR
           </p>
         </div>
       )}
 
       {status === 0 && (
-        <p className="mt-3 text-xs text-zinc-600 text-center">
+        <p className="mt-3 text-xs text-center" style={{ color: "var(--text-muted)" }}>
           Nodes will cast votes once the round ends
         </p>
       )}

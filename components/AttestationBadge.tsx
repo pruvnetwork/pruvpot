@@ -13,21 +13,28 @@ export default function AttestationBadge({ attestation }: Props) {
   const hoursLeft = Math.floor((attestation.expiresAt - Date.now() / 1000) / 3600);
 
   return (
-    <div className="border border-emerald-700 bg-emerald-950/40 rounded-xl p-4">
+    <div
+      className="rounded-xl p-4"
+      style={{
+        background: "rgba(5, 150, 105, 0.06)",
+        border: "1px solid rgba(5, 150, 105, 0.20)",
+        boxShadow: "var(--shadow-card)",
+      }}
+    >
       <button
         onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center justify-between gap-3"
       >
         <div className="flex items-center gap-2">
-          <span className="text-emerald-400 text-lg">✓</span>
-          <span className="text-emerald-300 font-semibold text-sm">
+          <span className="text-lg" style={{ color: "var(--success-color)" }}>✓</span>
+          <span className="font-semibold text-sm" style={{ color: "var(--success-color)" }}>
             ZK Attested Program
           </span>
-          <span className="bg-emerald-900 text-emerald-300 text-xs px-2 py-0.5 rounded-full font-mono">
+          <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(5, 150, 105, 0.10)", color: "var(--success-color)", fontFamily: "var(--font-mono)" }}>
             Trust {attestation.trustScore}/100
           </span>
         </div>
-        <span className="text-zinc-500 text-xs">{expanded ? "▲" : "▼"}</span>
+        <span className="text-xs" style={{ color: "var(--text-muted)" }}>{expanded ? "▲" : "▼"}</span>
       </button>
 
       {expanded && (
@@ -37,7 +44,7 @@ export default function AttestationBadge({ attestation }: Props) {
           <Row label="Signed by" value={`${attestation.nodeCount} nodes`} />
           <Row label="Attested at" value={formatTime(attestation.attestedAt)} />
           <Row label="Expires in" value={`${hoursLeft}h`} />
-          <p className="text-zinc-500 mt-3 text-xs leading-relaxed">
+          <p className="mt-3 text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
             PRUV nodes verified this program&apos;s bytecode via Halo2 ZK proof and anchored the
             hash on-chain. Any code change invalidates the attestation immediately.
           </p>
@@ -50,8 +57,8 @@ export default function AttestationBadge({ attestation }: Props) {
 function Row({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex justify-between">
-      <span className="text-zinc-500">{label}</span>
-      <span className="text-zinc-200">{value}</span>
+      <span style={{ color: "var(--text-muted)" }}>{label}</span>
+      <span style={{ color: "var(--text-secondary)" }}>{value}</span>
     </div>
   );
 }
