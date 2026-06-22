@@ -16,93 +16,46 @@ export default function PrizePool({ prizePoolLamports, ticketCount, ticketPriceS
 
   return (
     <div className="text-center">
-      <p
-        className="text-xs uppercase tracking-widest mb-2 font-semibold"
-        style={{ color: "var(--text-muted)", letterSpacing: "0.15em" }}
-      >
-        Prize Pool
+      <p className="text-zinc-500 text-xs uppercase tracking-widest mb-1">Prize Pool</p>
+      <p className="text-4xl sm:text-5xl font-bold text-white tabular-nums" style={{ textShadow: "0 0 40px rgba(139,92,246,0.25)" }}>
+        <AnimatedNumber value={total} decimals={3} />
+        <span className="text-xl sm:text-2xl text-zinc-400 ml-1">SOL</span>
       </p>
-
-      {/* Hero number */}
-      <div
-        className="relative inline-block"
-        style={{
-          filter: "drop-shadow(0 0 32px rgba(124,58,237,0.4))",
-        }}
-      >
-        <p
-          className="text-5xl sm:text-6xl font-bold tabular-nums"
-          style={{
-            background: "linear-gradient(135deg, #A855F7 0%, #38BDF8 100%)",
-            WebkitBackgroundClip: "text",
-            WebkitTextFillColor: "transparent",
-            backgroundClip: "text",
-            lineHeight: 1.1,
-          }}
-        >
-          <AnimatedNumber value={total} decimals={3} />
-        </p>
-      </div>
-      <span
-        className="ml-2 text-xl sm:text-2xl font-semibold align-top mt-2 inline-block"
-        style={{ color: "var(--text-secondary)" }}
-      >
-        SOL
-      </span>
-
-      <p
-        className="text-sm mt-2"
-        style={{ color: "var(--text-muted)" }}
-      >
+      <p className="text-zinc-500 text-xs sm:text-sm mt-1">
         {ticketCount.toString()} tickets · {ticketPriceSol} SOL each
       </p>
 
-      {/* Share pills */}
-      <div className="flex gap-2 sm:gap-3 mt-5 justify-center">
-        <SharePill label="Winner" value={winnerShare} pct={80} variant="purple" />
-        <SharePill label="Nodes"  value={nodeShare}   pct={15} variant="blue" />
-        <SharePill label="Treasury" value={treasuryShare} pct={5} variant="neutral" />
+      <div className="flex gap-2 sm:gap-3 mt-4 justify-center">
+        <SharePill label="Winner" value={winnerShare} pct={80} color="emerald" />
+        <SharePill label="Nodes" value={nodeShare} pct={15} color="sky" />
+        <SharePill label="Treasury" value={treasuryShare} pct={5} color="zinc" />
       </div>
     </div>
   );
 }
 
 function SharePill({
-  label, value, pct, variant,
+  label,
+  value,
+  pct,
+  color,
 }: {
-  label: string; value: number; pct: number; variant: "purple" | "blue" | "neutral";
+  label: string;
+  value: number;
+  pct: number;
+  color: "emerald" | "sky" | "zinc";
 }) {
-  const styles = {
-    purple: {
-      background: "linear-gradient(135deg, rgba(124,58,237,0.18), rgba(168,85,247,0.12))",
-      border: "1px solid rgba(124,58,237,0.28)",
-      valueColor: "#A855F7",
-    },
-    blue: {
-      background: "linear-gradient(135deg, rgba(37,99,235,0.18), rgba(56,189,248,0.12))",
-      border: "1px solid rgba(37,99,235,0.28)",
-      valueColor: "#38BDF8",
-    },
-    neutral: {
-      background: "rgba(255,255,255,0.04)",
-      border: "1px solid var(--border)",
-      valueColor: "var(--text-secondary)",
-    },
+  const colors = {
+    emerald: "bg-emerald-950 border-emerald-800 text-emerald-300",
+    sky: "bg-sky-950 border-sky-800 text-sky-300",
+    zinc: "bg-zinc-800 border-zinc-700 text-zinc-300",
   };
 
-  const s = styles[variant];
-
   return (
-    <div
-      className="rounded-xl px-3 py-2 text-center flex-1 max-w-[100px]"
-      style={{
-        background: s.background,
-        border: s.border,
-      }}
-    >
-      <p className="text-xs mb-0.5" style={{ color: "var(--text-muted)" }}>{label}</p>
-      <p className="text-base font-bold" style={{ color: s.valueColor }}>{pct}%</p>
-      <p className="text-xs font-mono mt-0.5" style={{ color: "var(--text-secondary)" }}>
+    <div className={`border rounded-lg px-3 py-1.5 text-center ${colors[color]}`}>
+      <p className="text-xs text-zinc-500">{label}</p>
+      <p className="text-sm font-semibold">{pct}%</p>
+      <p className="text-xs font-mono">
         <AnimatedNumber value={value} decimals={3} /> SOL
       </p>
     </div>
