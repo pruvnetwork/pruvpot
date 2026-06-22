@@ -76,8 +76,8 @@ export default function StatsPage() {
                     height: animated ? targetH : "0%",
                     transition: "height 700ms cubic-bezier(0.34, 1.2, 0.64, 1)",
                     borderRadius: "6px 6px 0 0",
-                    background: "linear-gradient(to top, #6D28D9, #A78BFA)",
-                    boxShadow: "0 -4px 14px rgba(124,58,237,0.28)",
+                    background: "linear-gradient(to top, rgba(109,40,217,0.45), rgba(167,139,250,0.25))",
+                    boxShadow: "0 -4px 14px rgba(124,58,237,0.14)",
                   }}
                 />
                 <span className="text-[9px]" style={{ color: "var(--text-muted)" }}>#{r.roundId.toString()}</span>
@@ -107,8 +107,8 @@ export default function StatsPage() {
                     height: animated ? targetH : "0%",
                     transition: "height 700ms cubic-bezier(0.34, 1.2, 0.64, 1)",
                     borderRadius: "6px 6px 0 0",
-                    background: "linear-gradient(to top, #059669, #34D399)",
-                    boxShadow: "0 -4px 14px rgba(5,150,105,0.24)",
+                    background: "linear-gradient(to top, rgba(5,150,105,0.45), rgba(52,211,153,0.22))",
+                    boxShadow: "0 -4px 14px rgba(5,150,105,0.12)",
                   }}
                 />
                 <span className="text-[9px]" style={{ color: "var(--text-muted)" }}>#{r.roundId.toString()}</span>
