@@ -98,7 +98,11 @@ export function useOnChainEvents(maxEvents = 40): OnChainEvent[] {
   const subRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const conn = new Connection(rpcEndpoint(), { commitment: "confirmed", wsEndpoint: rpcWsEndpoint() });
+    const conn = new Connection(rpcEndpoint(), {
+      commitment: "confirmed",
+      wsEndpoint: rpcWsEndpoint(),
+      disableRetryOnRateLimit: true,
+    });
     connRef.current = conn;
 
     // Backfill recent history first
