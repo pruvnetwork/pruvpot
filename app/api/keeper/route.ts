@@ -2,17 +2,27 @@ import { NextResponse } from "next/server";
 import { runKeeperPass, isTransient } from "@/lib/keeper-core";
 
 /**
- * Vercel Cron trigger for the round keeper.
+ * HTTP trigger for the round keeper.
  *
  * This exists because the GitHub Actions schedule is disabled automatically
  * after 60 days of repository inactivity — which is exactly how round #732 sat
- * expired-but-open for three weeks. Vercel Cron has no such failure mode, so it
- * is the primary trigger and the Actions workflow is the backup. Both call the
- * same idempotent pass, so running both is safe.
+ * expired-but-open for three weeks — and because that schedule, even when
+ * healthy, only fires every ~25-35 minutes despite requesting every five
+ * (GitHub throttles cron hard). A round lasts ~5 minutes, so the keeper needs
+ * a trigger that actually keeps up.
+ *
+ * Drive it with any scheduler that can send a Bearer token:
+ *   - An external cron service (cron-job.org, UptimeRobot, a server crontab) —
+ *     free, one-minute granularity, works on any Vercel plan.
+ *   - Vercel Cron via `vercel.json`, but ONLY on Pro. Hobby rejects any
+ *     expression more frequent than daily at deploy time, so committing a
+ *     five-minute cron here fails the build outright.
+ *
+ * The pass is idempotent, so overlapping triggers are harmless.
  *
  * Env:
  *   SOLANA_KEYPAIR   base64-encoded JSON keypair array (required)
- *   CRON_SECRET      shared secret; Vercel Cron sends it as a Bearer token
+ *   CRON_SECRET      shared secret, sent as `Authorization: Bearer <secret>`
  *   NEXT_PUBLIC_RPC_URL / RPC_URL   RPC endpoint (optional)
  */
 
