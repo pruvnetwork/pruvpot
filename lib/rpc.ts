@@ -39,7 +39,15 @@ export function rpcWsEndpoint(): string {
 }
 
 export function getConnection(): Connection {
-  return new Connection(rpcEndpoint(), "confirmed");
+  return new Connection(rpcEndpoint(), {
+    commitment: "confirmed",
+    // web3.js retries a 429 four times with backoff before throwing, which on
+    // an exhausted key costs ~8.7s before failover can even start. Measured
+    // against the live dead endpoint, turning it off drops that to ~0.4s.
+    // Retrying an endpoint that is out of quota does not help; moving to the
+    // next one does.
+    disableRetryOnRateLimit: true,
+  });
 }
 
 /**
