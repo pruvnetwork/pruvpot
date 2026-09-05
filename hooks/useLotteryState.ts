@@ -2,12 +2,13 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Connection, PublicKey } from "@solana/web3.js";
+import { getConnection, isEndpointFailure, advanceEndpoint } from "@/lib/rpc";
 import { Program, AnchorProvider } from "@coral-xyz/anchor";
 import IDL from "@/lib/idl/pruv_lottery.json";
 import { PROGRAM_ID, getConfigPDA, getLotteryStatePDA } from "@/lib/lottery-client";
 import type { LotteryRoundState } from "@/lib/types";
 
-const RPC = process.env.NEXT_PUBLIC_RPC_URL ?? "https://api.devnet.solana.com";
+
 
 // Slot time is not a constant. Devnet has been measured at ~165ms/slot while
 // this file assumed 400ms, which made the countdown over-report the time left
@@ -51,7 +52,7 @@ const DUMMY_WALLET = {
 };
 
 function getReadProgram() {
-  const conn = new Connection(RPC, "confirmed");
+  const conn = getConnection();
   const provider = new AnchorProvider(conn, DUMMY_WALLET as never, { commitment: "confirmed" });
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return { program: new Program(IDL as any, provider), connection: conn };
@@ -172,6 +173,13 @@ export function useLotteryState(): LotteryChainState {
           });
         }
       } catch (err) {
+        // A dead endpoint (quota, auth, outage) is not a dead chain. Retire it
+        // and retry immediately — every other hook picks up the survivor too,
+        // so one rate-limited key degrades the app instead of blanking it.
+        if (isEndpointFailure(err) && advanceEndpoint()) {
+          if (!cancelled) await fetchChainState();
+          return;
+        }
         if (!cancelled) {
           setState(prev => ({
             ...prev,

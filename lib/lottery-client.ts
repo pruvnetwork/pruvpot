@@ -3,11 +3,12 @@
 import { Program, AnchorProvider, BN } from "@coral-xyz/anchor";
 import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
 import type { AnchorWallet } from "@solana/wallet-adapter-react";
+import { getConnection } from "./rpc";
 import IDL from "./idl/pruv_lottery.json";
 import type { PruvLottery } from "./idl/pruv_lottery";
 
 export const PROGRAM_ID = new PublicKey("HxoYg9RGSK4J7bbFkuUuPXiJqonKD9g5Dx6FiaBSVpob");
-const DEVNET_RPC = process.env.NEXT_PUBLIC_RPC_URL ?? "https://api.devnet.solana.com";
+
 
 // Buffer.writeBigUInt64LE is unavailable in browser polyfills — use DataView instead.
 export function u64LE(n: bigint): Buffer {
@@ -17,7 +18,7 @@ export function u64LE(n: bigint): Buffer {
 }
 
 export function getLotteryProgram(wallet: AnchorWallet, connection?: Connection) {
-  const conn = connection ?? new Connection(DEVNET_RPC, "confirmed");
+  const conn = connection ?? getConnection();
   const provider = new AnchorProvider(conn, wallet, { commitment: "confirmed" });
   return new Program(IDL as PruvLottery, provider);
 }
