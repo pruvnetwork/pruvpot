@@ -7,10 +7,16 @@ interface Props {
   status: 0 | 1 | 2;
   onBuy: () => Promise<void>;
   connected: boolean;
+  /**
+   * Round is still `status === 0` on-chain but `end_slot` has passed, so the
+   * program rejects buy_ticket with `RoundEnded`. Happens whenever the keeper
+   * is behind — don't let users sign a tx that is guaranteed to revert.
+   */
+  ended?: boolean;
 }
 
-function getButtonStyle(status: 0 | 1 | 2, connected: boolean, loading: boolean, success: boolean) {
-  if (status === 2) {
+function getButtonStyle(status: 0 | 1 | 2, connected: boolean, loading: boolean, success: boolean, ended: boolean) {
+  if (status === 2 || ended) {
     return {
       background: "var(--surface-secondary)",
       color: "var(--text-faint)",
@@ -64,13 +70,13 @@ function getButtonStyle(status: 0 | 1 | 2, connected: boolean, loading: boolean,
   };
 }
 
-export default function BuyTicketButton({ status, onBuy, connected }: Props) {
+export default function BuyTicketButton({ status, onBuy, connected, ended = false }: Props) {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const { promise } = useToast();
 
   async function handle() {
-    if (!connected || status !== 0 || loading) return;
+    if (!connected || status !== 0 || ended || loading) return;
     setLoading(true);
     try {
       await promise(onBuy(), {
@@ -85,9 +91,9 @@ export default function BuyTicketButton({ status, onBuy, connected }: Props) {
     }
   }
 
-  const disabled = !connected || status !== 0 || loading;
-  const btnStyle = getButtonStyle(status, connected, loading, success);
-  const isActiveBuy = status === 0 && connected && !loading && !success;
+  const disabled = !connected || status !== 0 || ended || loading;
+  const btnStyle = getButtonStyle(status, connected, loading, success, ended);
+  const isActiveBuy = status === 0 && !ended && connected && !loading && !success;
 
   return (
     <div className="space-y-2">
@@ -130,6 +136,8 @@ export default function BuyTicketButton({ status, onBuy, connected }: Props) {
         <span className="relative z-10">
           {status === 2
             ? "Round Closed"
+            : ended
+            ? "Round ended — waiting for draw"
             : status === 1
             ? "Drawing in progress…"
             : !connected
@@ -142,7 +150,13 @@ export default function BuyTicketButton({ status, onBuy, connected }: Props) {
         </span>
       </button>
 
-      {status === 0 && connected && (
+      {ended && (
+        <p className="text-center text-xs" style={{ color: "var(--text-faint)" }}>
+          Ticket sales for this round are closed · Next round opens shortly
+        </p>
+      )}
+
+      {status === 0 && !ended && connected && (
         <p className="text-center text-xs" style={{ color: "var(--text-faint)" }}>
           Max 5 tickets per wallet · Transaction goes to prize pool
         </p>
