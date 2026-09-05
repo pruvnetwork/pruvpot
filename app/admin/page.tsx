@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { useWallet, useConnection, useAnchorWallet } from "@solana/wallet-adapter-react";
-import { Connection, PublicKey, SystemProgram, SYSVAR_SLOT_HASHES_PUBKEY } from "@solana/web3.js";
+import { PublicKey, SystemProgram, SYSVAR_SLOT_HASHES_PUBKEY } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/Toast";
@@ -12,7 +12,7 @@ import { useOnChainEvents } from "@/hooks/useOnChainEvents";
 import { getLotteryProgram, PROGRAM_ID, getConfigPDA, getLotteryStatePDA, getTicketPDA, u64LE } from "@/lib/lottery-client";
 import IDL from "@/lib/idl/pruv_lottery.json";
 
-const RPC = process.env.NEXT_PUBLIC_RPC_URL ?? "https://api.devnet.solana.com";
+import { getConnection } from "@/lib/rpc";
 const AUTHORITY = "Ddk15nuwaK3HZ8evHSwN93n1n3Xk4Gr8mt4fYN5TE1s1";
 const OPERATOR_KEY = "pruv-admin-2024";
 
@@ -93,7 +93,7 @@ function useAdminConfig() {
   const [treasuryBalance, setTreasuryBalance] = useState<bigint>(0n);
 
   useEffect(() => {
-    const conn = new Connection(RPC, "confirmed");
+    const conn = getConnection();
     const dummyWallet = {
       publicKey: PublicKey.default,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -275,7 +275,7 @@ export default function AdminPage() {
       const [winnerTicketPDA] = getTicketPDA(round.roundId, winnerIndex);
 
       // Fetch winner wallet from ticket account
-      const conn2 = new Connection(RPC, "confirmed");
+      const conn2 = getConnection();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const dummyWallet = { publicKey: PublicKey.default, signTransaction: async (tx: any) => tx, signAllTransactions: async (txs: any[]) => txs };
       const readProvider = new anchor.AnchorProvider(conn2, dummyWallet as never, { commitment: "confirmed" });

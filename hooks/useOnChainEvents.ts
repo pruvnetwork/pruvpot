@@ -3,8 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { PROGRAM_ID } from "@/lib/lottery-client";
-
-const RPC = process.env.NEXT_PUBLIC_RPC_URL ?? "https://api.devnet.solana.com";
+import { rpcEndpoint, rpcWsEndpoint } from "@/lib/rpc";
 
 // Event discriminators from IDL (first 8 bytes of SHA256("event:<Name>"))
 const DISC = {
@@ -99,7 +98,7 @@ export function useOnChainEvents(maxEvents = 40): OnChainEvent[] {
   const subRef = useRef<number | null>(null);
 
   useEffect(() => {
-    const conn = new Connection(RPC, { commitment: "confirmed", wsEndpoint: RPC.replace("https://", "wss://").replace("http://", "ws://") });
+    const conn = new Connection(rpcEndpoint(), { commitment: "confirmed", wsEndpoint: rpcWsEndpoint() });
     connRef.current = conn;
 
     // Backfill recent history first

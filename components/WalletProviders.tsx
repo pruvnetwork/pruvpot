@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { ConnectionProvider, WalletProvider } from "@solana/wallet-adapter-react";
 import { PhantomWalletAdapter, SolflareWalletAdapter } from "@solana/wallet-adapter-wallets";
 
-const RPC = process.env.NEXT_PUBLIC_RPC_URL ?? "https://api.devnet.solana.com";
+import { rpcEndpoint } from "@/lib/rpc";
 
 export default function WalletProviders({ children }: { children: React.ReactNode }) {
   const wallets = useMemo(() => [
@@ -13,7 +13,7 @@ export default function WalletProviders({ children }: { children: React.ReactNod
   ], []);
 
   return (
-    <ConnectionProvider endpoint={RPC}>
+    <ConnectionProvider endpoint={rpcEndpoint()}>
       <WalletProvider wallets={wallets} autoConnect onError={() => {}}>
         {children}
       </WalletProvider>
