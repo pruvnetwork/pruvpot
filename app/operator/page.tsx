@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useWallet, useConnection, useAnchorWallet } from "@solana/wallet-adapter-react";
-import { PublicKey, Connection, SystemProgram, SYSVAR_SLOT_HASHES_PUBKEY } from "@solana/web3.js";
+import { PublicKey, SystemProgram, SYSVAR_SLOT_HASHES_PUBKEY } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/Toast";
@@ -12,7 +12,7 @@ import { useOnChainEvents } from "@/hooks/useOnChainEvents";
 import { getLotteryProgram, PROGRAM_ID, getConfigPDA, getLotteryStatePDA, u64LE } from "@/lib/lottery-client";
 import IDL from "@/lib/idl/pruv_lottery.json";
 
-const RPC = process.env.NEXT_PUBLIC_RPC_URL ?? "https://api.devnet.solana.com";
+import { getConnection } from "@/lib/rpc";
 const OPERATOR = "6kacXz5Yb5X2RcsSt8GasPwdj3EfLGHJHy9YH7JLYPTP";
 const NODE_KEY  = "pruv-node-2024";
 
@@ -144,7 +144,7 @@ export default function OperatorPage() {
   // Check if already voted for current round
   useEffect(() => {
     if (!round?.roundId || !publicKey) return;
-    const conn = new Connection(RPC, "confirmed");
+    const conn = getConnection();
     const [dvPDA] = getDrawVotePDA(round.roundId, publicKey);
     conn.getAccountInfo(dvPDA).then(info => {
       if (info) setMyVotedRound(round.roundId);
@@ -154,7 +154,7 @@ export default function OperatorPage() {
   // Fetch operator wallet balance
   useEffect(() => {
     if (!publicKey) return;
-    const conn = new Connection(RPC, "confirmed");
+    const conn = getConnection();
     conn.getBalance(publicKey).then(b => setNodeBalance(BigInt(b))).catch(() => {});
     const id = setInterval(() => {
       conn.getBalance(publicKey).then(b => setNodeBalance(BigInt(b))).catch(() => {});
@@ -166,7 +166,7 @@ export default function OperatorPage() {
   async function handleVote() {
     if (!canSign || !round) { toast("Connect operator wallet", "error"); return; }
     try {
-      const conn = new Connection(RPC, "confirmed");
+      const conn = getConnection();
       const program = getLotteryProgram(anchorWallet, connection);
       const [configPDA] = getConfigPDA();
       const [statePDA] = getLotteryStatePDA(round.roundId);
