@@ -1,13 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Connection, PublicKey } from "@solana/web3.js";
+import { PublicKey } from "@solana/web3.js";
+import { getConnection } from "@/lib/rpc";
 import { Program, AnchorProvider } from "@coral-xyz/anchor";
 import IDL from "@/lib/idl/pruv_lottery.json";
 import { PROGRAM_ID, getConfigPDA, u64LE } from "@/lib/lottery-client";
 import type { RoundHistory } from "@/lib/types";
 
-const RPC = process.env.NEXT_PUBLIC_RPC_URL ?? "https://api.devnet.solana.com";
 const REFRESH_MS = 30_000;
 
 const DUMMY_WALLET = {
@@ -34,7 +34,7 @@ export function useRoundHistory(): RoundHistoryState {
 
     async function fetch() {
       try {
-        const conn = new Connection(RPC, "confirmed");
+        const conn = getConnection();
         const provider = new AnchorProvider(conn, DUMMY_WALLET as never, { commitment: "confirmed" });
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const program = new Program(IDL as any, provider);
