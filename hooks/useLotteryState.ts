@@ -8,9 +8,40 @@ import { PROGRAM_ID, getConfigPDA, getLotteryStatePDA } from "@/lib/lottery-clie
 import type { LotteryRoundState } from "@/lib/types";
 
 const RPC = process.env.NEXT_PUBLIC_RPC_URL ?? "https://api.devnet.solana.com";
-// Devnet: ~400ms per slot
-const MS_PER_SLOT = 400;
+
+// Slot time is not a constant. Devnet has been measured at ~165ms/slot while
+// this file assumed 400ms, which made the countdown over-report the time left
+// by ~2.4x — a 1800-slot round really lasts ~5 minutes but displayed as ~12.
+// Users came back to a round the UI had promised was still open, so measure it.
+const FALLBACK_MS_PER_SLOT = 400;
+const MIN_MS_PER_SLOT = 50;
+const MAX_MS_PER_SLOT = 2_000;
+const REMEASURE_INTERVAL_MS = 60_000;
+const TICK_MS = 200;
 const POLL_INTERVAL_MS = 5_000;
+
+/** Derive ms-per-slot from recent cluster performance, with a sane fallback. */
+async function measureMsPerSlot(conn: Connection): Promise<number> {
+  try {
+    const samples = await conn.getRecentPerformanceSamples(5);
+    let slots = 0;
+    let secs = 0;
+    for (const s of samples) {
+      if (s.numSlots > 0 && s.samplePeriodSecs > 0) {
+        slots += s.numSlots;
+        secs += s.samplePeriodSecs;
+      }
+    }
+    if (slots === 0) return FALLBACK_MS_PER_SLOT;
+    const ms = (secs * 1000) / slots;
+    if (!Number.isFinite(ms) || ms < MIN_MS_PER_SLOT || ms > MAX_MS_PER_SLOT) {
+      return FALLBACK_MS_PER_SLOT;
+    }
+    return ms;
+  } catch {
+    return FALLBACK_MS_PER_SLOT;
+  }
+}
 
 // Minimal wallet stub — no signing needed for account reads
 const DUMMY_WALLET = {
@@ -31,6 +62,7 @@ export interface LotteryChainState {
   countdown: number;      // ms until end_slot
   currentSlot: number;
   ticketPriceLamports: bigint;
+  msPerSlot: number;      // measured, not assumed
   loading: boolean;
   error: string | null;
 }
@@ -41,21 +73,28 @@ export function useLotteryState(): LotteryChainState {
     countdown: 0,
     currentSlot: 0,
     ticketPriceLamports: BigInt(10_000_000),
+    msPerSlot: FALLBACK_MS_PER_SLOT,
     loading: true,
     error: null,
   });
 
-  // Keep current slot up-to-date between polls for smooth countdown
-  const slotRef = useRef(0);
-  const endSlotRef = useRef(0);
+  // Anchor the countdown to (slot, wall-clock) captured at the last poll.
+  const endSlotRef    = useRef(0);
+  const anchorSlotRef = useRef(0);
+  const anchorTimeRef = useRef(0);
+  const msPerSlotRef  = useRef(FALLBACK_MS_PER_SLOT);
+  const measuredAtRef = useRef(0);
 
-  // Smooth countdown tick every 400ms (one slot)
+  // Interpolate between polls off the wall clock. The previous version added
+  // one slot per tick, which only stays accurate while the tick interval and
+  // the real slot time agree — the very assumption that was wrong.
   useEffect(() => {
     const id = setInterval(() => {
-      const remaining = Math.max(0, (endSlotRef.current - slotRef.current) * MS_PER_SLOT);
-      setState(prev => ({ ...prev, countdown: remaining }));
-      slotRef.current += 1; // optimistic slot advance between polls
-    }, MS_PER_SLOT);
+      if (anchorTimeRef.current === 0) return;
+      const total     = (endSlotRef.current - anchorSlotRef.current) * msPerSlotRef.current;
+      const remaining = Math.max(0, total - (Date.now() - anchorTimeRef.current));
+      setState(prev => (prev.countdown === remaining ? prev : { ...prev, countdown: remaining }));
+    }, TICK_MS);
     return () => clearInterval(id);
   }, []);
 
@@ -107,9 +146,19 @@ export function useLotteryState(): LotteryChainState {
           thresholdBps,
         };
 
-        slotRef.current = currentSlot;
-        endSlotRef.current = endSlot;
-        const countdown = Math.max(0, (endSlot - currentSlot) * MS_PER_SLOT);
+        // Slot time drifts slowly, so re-measure about once a minute rather
+        // than on every 5s poll.
+        const now = Date.now();
+        if (now - measuredAtRef.current > REMEASURE_INTERVAL_MS) {
+          msPerSlotRef.current = await measureMsPerSlot(connection);
+          measuredAtRef.current = now;
+        }
+        const msPerSlot = msPerSlotRef.current;
+
+        anchorSlotRef.current = currentSlot;
+        anchorTimeRef.current = Date.now();
+        endSlotRef.current    = endSlot;
+        const countdown = Math.max(0, (endSlot - currentSlot) * msPerSlot);
 
         if (!cancelled) {
           setState({
@@ -117,6 +166,7 @@ export function useLotteryState(): LotteryChainState {
             countdown,
             currentSlot,
             ticketPriceLamports,
+            msPerSlot,
             loading: false,
             error: null,
           });
