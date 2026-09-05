@@ -1,9 +1,19 @@
 name: Round Keeper
 
+# Backup trigger for the round keeper. The primary one is Vercel Cron
+# (vercel.json -> /api/keeper); both call the same idempotent pass.
+#
+# GitHub disables scheduled workflows after 60 days of repository inactivity.
+# That is what silently stopped this keeper on 2026-08-15 and left round #732
+# expired-but-open for three weeks, so the keepalive job below is load-bearing.
+
 on:
   schedule:
     - cron: "*/5 * * * *"   # every 5 minutes
   workflow_dispatch:          # manual trigger
+
+permissions:
+  contents: write
 
 jobs:
   keep:
@@ -25,3 +35,28 @@ jobs:
           SOLANA_KEYPAIR: ${{ secrets.SOLANA_KEYPAIR }}
           RPC_URL: ${{ secrets.RPC_URL }}
         run: npx ts-node --compiler-options '{"module":"commonjs","esModuleInterop":true,"resolveJsonModule":true}' scripts/round-keeper.ts
+
+  # Pushes an empty commit whenever the repo has been quiet for 45 days, so the
+  # 60-day inactivity timer never expires and this schedule stays enabled.
+  keepalive:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push keepalive commit if repo has been idle 45+ days
+        run: |
+          set -euo pipefail
+          last=$(git log -1 --format=%ct)
+          age_days=$(( ( $(date +%s) - last ) / 86400 ))
+          echo "Days since last commit: $age_days"
+          if [ "$age_days" -lt 45 ]; then
+            echo "Repo is active — nothing to do."
+            exit 0
+          fi
+          git config user.name  "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit --allow-empty -m "chore: keepalive — keep Actions schedule enabled [skip ci]"
+          git push

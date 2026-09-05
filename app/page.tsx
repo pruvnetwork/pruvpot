@@ -68,9 +68,13 @@ export default function Home() {
 
   const handleBuy = useCallback(async () => {
     if (!anchorWallet || !connected || !round) throw new Error("Wallet not connected");
+    // The program enforces `clock.slot < end_slot`; bail out before asking the
+    // user to sign a transaction that would revert with RoundEnded.
+    if (round.status !== 0 || countdown <= 0)
+      throw new Error("Round has ended — waiting for the draw");
     const ticketIndex = round.ticketCount; // on-chain count = next ticket index
     await buyTicket(anchorWallet, connection, round.roundId, ticketIndex);
-  }, [anchorWallet, connected, connection, round]);
+  }, [anchorWallet, connected, connection, round, countdown]);
 
   if (loading || !round) return (
     <div className="max-w-5xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-3 gap-5 lg:items-start">
@@ -97,6 +101,12 @@ export default function Home() {
   );
 
   const requiredVotes = Math.ceil((Math.max(1, round.activeNodeCount) * 2) / 3);
+
+  // On-chain status stays `Open` until a node casts its draw vote, but the
+  // program rejects buy_ticket once `end_slot` passes (LotteryError::RoundEnded).
+  // If the keeper is lagging this gap can last indefinitely, so treat an
+  // expired-but-open round as closed for sales.
+  const roundEnded = round.status === 0 && countdown <= 0;
 
   return (
     <div>
@@ -135,7 +145,9 @@ export default function Home() {
               <div className="flex items-center gap-2">
                 <span
                   className={`w-2 h-2 rounded-full ${
-                    round.status === 0
+                    roundEnded
+                      ? "bg-amber-400"
+                      : round.status === 0
                       ? "bg-emerald-400 animate-pulse"
                       : round.status === 1
                       ? "bg-yellow-400 animate-pulse"
@@ -143,7 +155,9 @@ export default function Home() {
                   }`}
                 />
                 <span className="text-sm" style={{ color: "var(--text-secondary)", fontWeight: 500 }}>
-                  {round.status === 0
+                  {roundEnded
+                    ? "Round ended — awaiting draw"
+                    : round.status === 0
                     ? "Round Open"
                     : round.status === 1
                     ? "Drawing in progress"
@@ -161,8 +175,20 @@ export default function Home() {
               ticketPriceSol={Number(ticketPriceLamports) / 1e9}
             />
 
+            {/* Sales closed, but no node has cast a draw vote yet */}
+            {roundEnded && (
+              <div className="mt-6 text-center">
+                <p className="text-xs uppercase tracking-widest mb-2" style={{ color: "var(--text-muted)", fontWeight: 500, letterSpacing: "0.04em" }}>
+                  Ticket sales closed
+                </p>
+                <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
+                  Waiting for node operators to draw this round.
+                </p>
+              </div>
+            )}
+
             {/* Countdown */}
-            {round.status === 0 && (
+            {round.status === 0 && !roundEnded && (
               <div className="mt-6 text-center">
                 <p className="text-xs uppercase tracking-widest mb-2" style={{ color: "var(--text-muted)", fontWeight: 500, letterSpacing: "0.04em" }}>
                   Closes in
@@ -220,11 +246,12 @@ export default function Home() {
                 status={round.status}
                 onBuy={handleBuy}
                 connected={connected}
+                ended={roundEnded}
               />
             </div>
 
             {/* Viral share nudge */}
-            {round.status === 0 && (
+            {round.status === 0 && !roundEnded && (
               <div
                 className="mt-3 flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border"
                 style={{ background: "var(--surface-secondary)", borderColor: "var(--border-soft)" }}
