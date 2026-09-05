@@ -27,8 +27,9 @@ import { runKeeperPass, isTransient } from "@/lib/keeper-core";
  */
 
 // anchor + web3.js need the Node runtime, and a pass can wait on RPC retries.
+// No `dynamic` export: Route Handlers are not cached by default, and this one
+// reads request headers anyway, so force-dynamic would only be noise.
 export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
 export const maxDuration = 60;
 
 export async function GET(request: Request) {
