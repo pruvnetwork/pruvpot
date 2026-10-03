@@ -37,10 +37,13 @@ export default function StatsPage() {
       {!loading && <>
       {/* Overview cards */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <Card label="Total Rounds" value={totalRounds.toString()} />
+        <Card label="Rounds Finalized" value={history.length.toString()} />
         <Card label="Total Prize Paid" value={`${totalPrizeSOL.toFixed(3)} SOL`} accent />
         <Card label="Total Tickets Sold" value={totalTickets.toLocaleString()} />
         <Card label="Avg Pool / Round" value={`${avgPoolSOL.toFixed(3)} SOL`} />
+      </div>
+      <p className="text-xs" style={{ color: "var(--text-muted)" }}>Current round: #{totalRounds}</p>
+      <div className="hidden">
       </div>
 
       {history.length === 0 && (

@@ -14,7 +14,6 @@ import IDL from "@/lib/idl/pruv_lottery.json";
 
 import { getConnection } from "@/lib/rpc";
 const AUTHORITY = "Ddk15nuwaK3HZ8evHSwN93n1n3Xk4Gr8mt4fYN5TE1s1";
-const OPERATOR_KEY = "pruv-admin-2024";
 
 function fmtLamports(l: bigint | number) {
   return (Number(l) / 1e9).toFixed(4) + " SOL";
@@ -28,8 +27,6 @@ function timeAgo(ms: number) {
 
 // ── Auth Gate ──────────────────────────────────────────────────────────────────
 function AuthGate({ onAuth }: { onAuth: () => void }) {
-  const [val, setVal] = useState("");
-  const [err, setErr] = useState(false);
   const { publicKey } = useWallet();
 
   // Auto-auth if authority wallet connected
@@ -37,38 +34,19 @@ function AuthGate({ onAuth }: { onAuth: () => void }) {
     if (publicKey?.toBase58() === AUTHORITY) onAuth();
   }, [publicKey, onAuth]);
 
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (val === OPERATOR_KEY) onAuth();
-    else { setErr(true); setTimeout(() => setErr(false), 1500); }
-  }
-
   return (
-    <div className="min-h-[60vh] flex items-center justify-center px-4">
+    <div className="ops-dark min-h-[60vh] flex items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
           <div className="w-12 h-12 bg-violet-600 rounded-xl mx-auto flex items-center justify-center text-xl font-bold mb-4">🔑</div>
           <h1 className="text-xl font-bold text-white">Operator Access</h1>
           <p className="text-zinc-500 text-sm mt-1">PRUVPOT Admin Panel</p>
         </div>
-        <form onSubmit={submit} className="space-y-3">
-          <input
-            type="password"
-            value={val}
-            onChange={e => setVal(e.target.value)}
-            placeholder="Operator key"
-            autoFocus
-            className={cn(
-              "w-full bg-zinc-900 border rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 outline-none transition-colors",
-              err ? "border-red-600" : "border-zinc-700 focus:border-violet-600"
-            )}
-          />
-          <button type="submit" className="w-full bg-violet-600 hover:bg-violet-500 text-white py-3 rounded-xl font-semibold transition-all">
-            Enter Panel
-          </button>
-        </form>
+        <p className="text-center text-sm text-zinc-400">
+          Connect the authority wallet to open the panel.
+        </p>
         <p className="text-center text-xs text-zinc-700">
-          Or connect the authority wallet · <span className="font-mono text-zinc-600">{AUTHORITY.slice(0,8)}…</span>
+          Authority · <span className="font-mono text-zinc-600">{AUTHORITY.slice(0,8)}…{AUTHORITY.slice(-4)}</span>
         </p>
       </div>
     </div>
@@ -322,7 +300,7 @@ export default function AdminPage() {
   }).filter(Boolean) as { text: string; ts: number; color: string }[];
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+    <div className="ops-dark max-w-5xl mx-auto px-4 py-8 space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between flex-wrap gap-3">
         <div>

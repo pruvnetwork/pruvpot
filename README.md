@@ -1,3 +1,34 @@
+# PRUVPOT
+
+Provably fair lottery on Solana devnet, built on the PRUV lottery program
+(`HxoYg9RGSK4J7bbFkuUuPXiJqonKD9g5Dx6FiaBSVpob`).
+
+## What can be verified, and how
+
+Every round can be checked from public chain data without trusting this UI:
+open a round (home page or `/rounds/<id>`) and press **Verify this round yourself**.
+The page reads the round account, recomputes the winner index from the committed
+slot hash with the same rule the program uses, cross-checks the SlotHashes sysvar
+while the slot is still in its window, and confirms the winning ticket belongs to
+the recorded winner. The logic is in `lib/verify.ts`.
+
+Trust model today: the seed is Solana's slot hash at a slot fixed when the round
+opened (not VRF-grade: the slot leader has marginal influence), node votes are
+re-derived and checked on-chain, and payouts are made by the program. PRUV's ZK
+attestation layer is **not** part of this devnet deployment.
+
+## Configuration
+
+Copy `.env.example` to `.env.local` and set `NEXT_PUBLIC_RPC_URL` to a devnet RPC
+with an API key. Without it the app talks to the public devnet endpoint, which
+rate-limits shared IPs and makes the page show an error box. On Vercel set the same
+variable in the project settings and redeploy.
+
+Admin (`/admin`) and node operator (`/operator`) screens open only for the
+authority / operator wallet; there is no password.
+
+## Development
+
 This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
 
 ## Getting Started

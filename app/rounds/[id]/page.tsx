@@ -7,6 +7,7 @@ import { useRoundDetail } from "@/hooks/useRoundDetail";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/Skeleton";
 import ShareButton from "@/components/ShareButton";
+import VerifyPanel from "@/components/VerifyPanel";
 
 function fmtSol(lamports: bigint) {
   return (Number(lamports) / 1e9).toFixed(4) + " SOL";
@@ -142,7 +143,7 @@ export default function RoundPage({ params }: { params: Promise<{ id: string }> 
             <span className="text-base">🔐</span>
             <h2 className="text-sm font-semibold text-zinc-200">SlotHash Proof</h2>
             <span className="text-xs bg-violet-900/50 text-violet-400 border border-violet-800 px-2 py-0.5 rounded-full ml-auto">
-              PRUV Verified
+              on-chain data
             </span>
           </div>
           <div className="space-y-3">
@@ -170,6 +171,9 @@ export default function RoundPage({ params }: { params: Promise<{ id: string }> 
           </div>
         </div>
       )}
+
+      {/* Independent verification */}
+      <VerifyPanel roundId={round.roundId} endSlot={round.endSlot} ticketCount={round.ticketCount} defaultOpen />
 
       {/* Node Votes */}
       {round.votes.length > 0 && (

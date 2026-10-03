@@ -2,7 +2,7 @@
 
 import { useCallback, useRef, useState, useEffect } from "react";
 import { useWallet, useConnection, useAnchorWallet } from "@solana/wallet-adapter-react";
-import AttestationBadge from "@/components/AttestationBadge";
+import ProgramCard from "@/components/ProgramCard";
 import NodeConsensus from "@/components/NodeConsensus";
 import PrizePool from "@/components/PrizePool";
 import RoundHistory from "@/components/RoundHistory";
@@ -17,8 +17,8 @@ import WinnerBanner from "@/components/WinnerBanner";
 import LiveChat from "@/components/LiveChat";
 import { RoundCardSkeleton, NodeSkeleton, Skeleton } from "@/components/Skeleton";
 import { formatCountdown } from "@/lib/utils";
-import type { NodeInfo, AttestationStatus } from "@/lib/types";
-import { buyTicket, PROGRAM_ID } from "@/lib/lottery-client";
+import type { NodeInfo } from "@/lib/types";
+import { buyTicket } from "@/lib/lottery-client";
 import { useLotteryState } from "@/hooks/useLotteryState";
 import { useRoundHistory } from "@/hooks/useRoundHistory";
 import { useDrawVotes } from "@/hooks/useDrawVotes";
@@ -33,16 +33,6 @@ const DEVNET_NODES: NodeInfo[] = [
     isActive: true,
   },
 ];
-
-const ATTESTATION: AttestationStatus = {
-  programId: PROGRAM_ID.toBase58(),
-  isAttested: true,
-  programHash: "be9f5313791e9e43cab3796a438839da25363b74587277cdb3564b9605f07770",
-  attestedAt: 1750271600,
-  expiresAt: 1750271600 + 365 * 24 * 3600,
-  nodeCount: 1,
-  trustScore: 97,
-};
 
 export default function Home() {
   const { round, countdown, ticketPriceLamports, loading, error } = useLotteryState();
@@ -80,8 +70,16 @@ export default function Home() {
     <div className="max-w-5xl mx-auto px-4 py-6 grid grid-cols-1 lg:grid-cols-3 gap-5 lg:items-start">
       <div className="lg:col-span-2 space-y-4">
         {error ? (
-          <div className="rounded-2xl p-6 text-sm" style={{ background: "rgba(225, 29, 72, 0.06)", border: "1px solid rgba(225, 29, 72, 0.20)", color: "var(--danger-color)" }}>
-            {error}
+          <div className="rounded-2xl p-6 text-sm space-y-2" style={{ background: "rgba(225, 29, 72, 0.06)", border: "1px solid rgba(225, 29, 72, 0.20)", color: "var(--danger-color)" }}>
+            <p className="font-semibold">
+              {/429|Too many requests|rate/i.test(error)
+                ? "The devnet RPC is rate-limiting this page. Retrying automatically…"
+                : "Could not read the round from devnet. Retrying…"}
+            </p>
+            <details className="text-xs" style={{ color: "var(--text-muted)" }}>
+              <summary className="cursor-pointer">details</summary>
+              <pre className="whitespace-pre-wrap break-all mt-1">{error}</pre>
+            </details>
           </div>
         ) : (
           <RoundCardSkeleton />
@@ -283,7 +281,7 @@ export default function Home() {
 
         {/* Right — trust sidebar + chat */}
         <div className="lg:sticky lg:top-[56px] space-y-4 lg:max-h-[calc(100vh-72px)] lg:overflow-y-auto lg:pb-4">
-          <AttestationBadge attestation={ATTESTATION} />
+          <ProgramCard activeNodes={DEVNET_NODES.length} />
 
           <NodeConsensus
             nodes={DEVNET_NODES}
@@ -301,9 +299,9 @@ export default function Home() {
             {[
               ["1", "Buy a ticket for 0.01 SOL"],
               ["2", "Round ends at a fixed Solana slot"],
-              ["3", "Nodes derive winner from SlotHash"],
-              ["4", "2/3 consensus required to finalize"],
-              ["5", "80% prize auto-transferred on-chain"],
+              ["3", "Nodes derive the winner from that slot's hash"],
+              ["4", `≥ 2/3 of registered nodes must agree (${DEVNET_NODES.length} node on devnet today)`],
+              ["5", "Program pays the winner, treasury and node pool"],
             ].map(([n, text]) => (
               <div key={n} className="flex gap-2.5 text-xs">
                 <span

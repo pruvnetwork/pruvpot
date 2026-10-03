@@ -14,7 +14,6 @@ import IDL from "@/lib/idl/pruv_lottery.json";
 
 import { getConnection } from "@/lib/rpc";
 const OPERATOR = "6kacXz5Yb5X2RcsSt8GasPwdj3EfLGHJHy9YH7JLYPTP";
-const NODE_KEY  = "pruv-node-2024";
 
 function fmtSol(lamports: bigint | number) {
   return (Number(lamports) / 1e9).toFixed(4) + " SOL";
@@ -66,22 +65,14 @@ function getNodePrizePDA(roundId: bigint): [PublicKey, number] {
 
 // ── Auth Gate ─────────────────────────────────────────────────────────────────
 function AuthGate({ onAuth }: { onAuth: () => void }) {
-  const [key, setKey] = useState("");
-  const [err, setErr] = useState(false);
   const { publicKey } = useWallet();
 
   useEffect(() => {
     if (publicKey?.toBase58() === OPERATOR) onAuth();
   }, [publicKey, onAuth]);
 
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (key === NODE_KEY) onAuth();
-    else { setErr(true); setTimeout(() => setErr(false), 1500); }
-  }
-
   return (
-    <div className="min-h-[60vh] flex items-center justify-center px-4">
+    <div className="ops-dark min-h-[60vh] flex items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
           <div className="w-12 h-12 bg-sky-700 rounded-xl mx-auto flex items-center justify-center text-2xl mb-4">⬡</div>
@@ -98,24 +89,12 @@ function AuthGate({ onAuth }: { onAuth: () => void }) {
           </div>
         </div>
 
-        <form onSubmit={submit} className="space-y-3">
-          <input
-            type="password"
-            value={key}
-            onChange={e => setKey(e.target.value)}
-            placeholder="Operator key"
-            className={cn(
-              "w-full bg-zinc-900 border rounded-xl px-4 py-3 text-sm text-white placeholder:text-zinc-600 outline-none transition-colors",
-              err ? "border-red-600" : "border-zinc-700 focus:border-sky-600"
-            )}
-          />
-          <button type="submit" className="w-full bg-sky-700 hover:bg-sky-600 text-white py-3 rounded-xl font-semibold transition-all">
-            Enter Portal
-          </button>
-        </form>
+        <p className="text-center text-sm text-zinc-400">
+          Connect the node operator wallet to open the portal.
+        </p>
 
         <p className="text-center text-xs text-zinc-700">
-          Or connect the operator wallet to auto-enter
+          Only the registered operator wallet can enter
         </p>
       </div>
     </div>
@@ -245,7 +224,7 @@ export default function OperatorPage() {
   const earnedEvents = events.filter(e => e.type === "RoundFinalized");
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+    <div className="ops-dark max-w-5xl mx-auto px-4 py-8 space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>

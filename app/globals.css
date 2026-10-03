@@ -199,3 +199,8 @@ main > *:nth-child(4) { animation-delay: 120ms; }
 .winner-glow {
   animation: winnerPulse 2s ease-in-out infinite;
 }
+
+
+/* Operator / admin tools are dark-only (internal screens); keep them legible in light mode. */
+.ops-dark { color: #e4e4e7; }
+body:has(.ops-dark) { background: #0b0b14; }
