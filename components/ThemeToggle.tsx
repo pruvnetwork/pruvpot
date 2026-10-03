@@ -13,7 +13,9 @@ export default function ThemeToggle() {
     } else {
       document.documentElement.classList.add("dark");
     }
-    setDark(isDark);
+    // Sync React state after the DOM class is applied (avoids a hydration mismatch).
+    const id = setTimeout(() => setDark(isDark), 0);
+    return () => clearTimeout(id);
   }, []);
 
   function toggle() {

@@ -50,12 +50,12 @@ export function useMyTickets(walletAddress: string | null): MyTicketsState {
   });
 
   useEffect(() => {
+    let cancelled = false;
     if (!walletAddress) {
-      setState(prev => ({ ...prev, loading: false }));
-      return;
+      const id = setTimeout(() => { if (!cancelled) setState(prev => ({ ...prev, loading: false })); }, 0);
+      return () => { cancelled = true; clearTimeout(id); };
     }
 
-    let cancelled = false;
 
     async function load() {
       try {

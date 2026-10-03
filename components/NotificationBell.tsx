@@ -18,6 +18,11 @@ export default function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [notifs, setNotifs] = useState<Notif[]>([]);
   const [hasNew, setHasNew] = useState(false);
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 10_000);
+    return () => clearInterval(id);
+  }, []);
   const { toast } = useToast();
   const warned60 = useRef(false);
   const warned30 = useRef(false);
@@ -25,6 +30,12 @@ export default function NotificationBell() {
   const lastRoundRef = useRef<bigint | null>(null);
 
   const { countdown, round } = useLotteryState();
+
+  function addNotif(msg: string) {
+    const notif = { id: ++_notifId, msg, time: Date.now(), read: false };
+    setNotifs(prev => [notif, ...prev].slice(0, 20));
+    setHasNew(true);
+  }
 
   // Fire notifications from real chain countdown
   useEffect(() => {
@@ -60,11 +71,7 @@ export default function NotificationBell() {
     return () => document.removeEventListener("pointerdown", onPointerDown);
   }, []);
 
-  function addNotif(msg: string) {
-    const notif = { id: ++_notifId, msg, time: Date.now(), read: false };
-    setNotifs(prev => [notif, ...prev].slice(0, 20));
-    setHasNew(true);
-  }
+
 
   function markAllRead() {
     setNotifs(prev => prev.map(n => ({ ...n, read: true })));
@@ -111,7 +118,7 @@ export default function NotificationBell() {
             {notifs.length === 0 ? (
               <div className="py-8 text-center">
                 <p className="text-zinc-600 text-sm">No notifications yet</p>
-                <p className="text-zinc-700 text-xs mt-1">You'll be alerted when a round is closing</p>
+                <p className="text-zinc-700 text-xs mt-1">You&apos;ll be alerted when a round is closing</p>
               </div>
             ) : (
               notifs.map(n => (
@@ -126,7 +133,7 @@ export default function NotificationBell() {
                   <div className="flex-1 min-w-0">
                     <p className="text-xs text-zinc-300">{n.msg}</p>
                     <p className="text-xs text-zinc-600 mt-0.5">
-                      {Math.floor((Date.now() - n.time) / 1000)}s ago
+                      {Math.max(0, Math.floor((now - n.time) / 1000))}s ago
                     </p>
                   </div>
                   {!n.read && (

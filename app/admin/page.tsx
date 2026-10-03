@@ -191,7 +191,7 @@ export default function AdminPage() {
       const nextId = cfg.currentRoundId + 1n;
       const [statePDA] = getLotteryStatePDA(nextId);
       const [configPDA] = getConfigPDA();
-      const sig = await (program.methods as any)
+      const sig = await program.methods
         .initializeRound(new anchor.BN(nextId.toString()))
         .accounts({ config: configPDA, lotteryState: statePDA, payer: publicKey, systemProgram: SystemProgram.programId })
         .rpc({ commitment: "confirmed" });
@@ -206,7 +206,7 @@ export default function AdminPage() {
     try {
       const program = getLotteryProgram(anchorWallet, connection);
       const [configPDA] = getConfigPDA();
-      const sig = await (program.methods as any)
+      const sig = await program.methods
         .updateNodeCount(cfg.activeNodeCount)
         .accounts({ config: configPDA, authority: publicKey })
         .rpc({ commitment: "confirmed" });
@@ -228,7 +228,7 @@ export default function AdminPage() {
     try {
       const program = getLotteryProgram(anchorWallet, connection);
       const [configPDA] = getConfigPDA();
-      const sig = await (program.methods as any)
+      const sig = await program.methods
         .updateConfig(tPubkey ?? null, aPubkey ?? null, null, null)
         .accounts({ config: configPDA, authority: publicKey })
         .rpc({ commitment: "confirmed" });
@@ -269,7 +269,7 @@ export default function AdminPage() {
         PROGRAM_ID
       );
 
-      const sig = await (program.methods as any)
+      const sig = await program.methods
         .finalizeDraw(new anchor.BN(round.roundId.toString()))
         .accounts({
           config: configPDA,

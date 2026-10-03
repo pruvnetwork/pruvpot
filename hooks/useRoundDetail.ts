@@ -57,8 +57,11 @@ export function useRoundDetail(roundId: number): RoundDetailState {
   const [state, setState] = useState<RoundDetailState>({ detail: null, loading: true, notFound: false });
 
   useEffect(() => {
-    if (!roundId || isNaN(roundId)) { setState({ detail: null, loading: false, notFound: true }); return; }
     let cancelled = false;
+    if (!roundId || isNaN(roundId)) {
+      const id = setTimeout(() => { if (!cancelled) setState({ detail: null, loading: false, notFound: true }); }, 0);
+      return () => { cancelled = true; clearTimeout(id); };
+    }
 
     async function load() {
       try {
@@ -79,6 +82,7 @@ export function useRoundDetail(roundId: number): RoundDetailState {
         // Round state
         const rid = BigInt(roundId);
         const [statePDA] = getLotteryStatePDA(rid);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         let stateAcc: any;
         try {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -122,6 +126,7 @@ export function useRoundDetail(roundId: number): RoundDetailState {
 
         let winnerIndex: bigint | null = null;
         const votes: RoundVote[] = voteAccs.map(({ account }) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const decoded = coder.accounts.decode<any>("DrawVote", account.data);
           // BorshCoder.decode keeps the IDL's snake_case field names, unlike
           // program.account.*.fetch which camel-cases them. Accept both.

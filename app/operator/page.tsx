@@ -16,6 +16,10 @@ import { getConnection } from "@/lib/rpc";
 import { DEFAULT_NODE_BPS, DEFAULT_TREASURY_BPS } from "@/lib/shares";
 const OPERATOR = process.env.NEXT_PUBLIC_OPERATOR ?? "9XvGmv2HCcr9BDVEwnj2oN9ZMrgEDATJDKk943tMUnxq";
 
+function hasWinnerShare(e: unknown): e is { winnerShare: bigint | string | number } {
+  return typeof e === "object" && e !== null && "winnerShare" in e && (e as { winnerShare?: unknown }).winnerShare != null;
+}
+
 function fmtSol(lamports: bigint | number) {
   return (Number(lamports) / 1e9).toFixed(4) + " SOL";
 }
@@ -160,7 +164,7 @@ export default function OperatorPage() {
 
       toast(`Derived winner index: ${winnerIndex}`, "success");
 
-      const sig = await (program.methods as any)
+      const sig = await program.methods
         .castDrawVote(new anchor.BN(round.roundId.toString()), new anchor.BN(winnerIndex.toString()))
         .accounts({
           config: configPDA,
@@ -187,7 +191,7 @@ export default function OperatorPage() {
       const [dvPDA] = getDrawVotePDA(round.roundId, publicKey!);
       const [npPDA] = getNodePrizePDA(round.roundId);
 
-      const sig = await (program.methods as any)
+      const sig = await program.methods
         .claimNodePrize(new anchor.BN(round.roundId.toString()))
         .accounts({
           drawVote: dvPDA,
@@ -387,16 +391,16 @@ export default function OperatorPage() {
             <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
               <h2 className="text-sm font-semibold text-zinc-200 flex items-center gap-2">💰 Earnings History (on-chain)</h2>
               <span className="text-xs text-emerald-400 font-semibold">
-                +{fmtSol(earnedEvents.reduce((s, e) => s + ((e as any).winnerShare ? (BigInt((e as any).winnerShare) * 15n / 80n) : 0n), 0n))} est.
+                +{fmtSol(earnedEvents.reduce((s, e) => s + (hasWinnerShare(e) ? (BigInt(e.winnerShare) * BigInt(DEFAULT_NODE_BPS)) / BigInt(10_000 - DEFAULT_NODE_BPS - DEFAULT_TREASURY_BPS) : 0n), 0n))} est.
               </span>
             </div>
             <div className="divide-y divide-zinc-800/50">
               {earnedEvents.length === 0 && (
                 <p className="px-5 py-4 text-xs text-zinc-600">No finalized rounds found in recent events</p>
               )}
-              {earnedEvents.map((ev: any, i) => {
+              {earnedEvents.map((ev, i) => {
                 // node pool share derived from the winner share with the config split (nodes : winner)
-                const nodeShare = ev.winnerShare ? (BigInt(ev.winnerShare) * BigInt(DEFAULT_NODE_BPS)) / BigInt(10_000 - DEFAULT_NODE_BPS - DEFAULT_TREASURY_BPS) : 0n;
+                const nodeShare = hasWinnerShare(ev) ? (BigInt(ev.winnerShare) * BigInt(DEFAULT_NODE_BPS)) / BigInt(10_000 - DEFAULT_NODE_BPS - DEFAULT_TREASURY_BPS) : 0n;
                 return (
                   <div key={i} className="flex items-center gap-4 px-5 py-3 text-sm hover:bg-zinc-800/20 transition-colors">
                     <span className="font-mono text-zinc-500 w-12">#{ev.roundId.toString()}</span>

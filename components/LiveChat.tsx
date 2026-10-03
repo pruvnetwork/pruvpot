@@ -52,16 +52,19 @@ export default function LiveChat({
 
   // Seed: round open message
   useEffect(() => {
-    push({ type: "system-round", text: `🔔 Round #${roundId.toString()} is now open` });
+    const id = setTimeout(() => push({ type: "system-round", text: `🔔 Round #${roundId.toString()} is now open` }), 0);
+    return () => clearTimeout(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Mirror on-chain events into chat
   useEffect(() => {
-    for (const ev of events) {
-      const key = eventKey(ev);
-      if (seenEvents.current.has(key)) continue;
-      seenEvents.current.add(key);
+    const fresh = events.filter((ev) => !seenEvents.current.has(eventKey(ev)));
+    if (fresh.length === 0) return;
+    fresh.forEach((ev) => seenEvents.current.add(eventKey(ev)));
+    // Mirror asynchronously: the chat is a side channel, not derived render state.
+    const id = setTimeout(() => {
+    for (const ev of fresh) {
 
       if (ev.type === "TicketPurchased") {
         push({ type: "system-buy", wallet: ev.buyer, text: `bought ticket #${ev.index.toString()}` });
@@ -73,6 +76,8 @@ export default function LiveChat({
         push({ type: "system-round", text: `🔔 Round #${ev.roundId.toString()} opened` });
       }
     }
+    }, 0);
+    return () => clearTimeout(id);
   }, [events, push]);
 
   // Countdown warning

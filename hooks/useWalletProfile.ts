@@ -46,11 +46,17 @@ export function useWalletProfile(walletAddress: string | null): WalletProfileSta
   const [state, setState] = useState<WalletProfileState>({ profile: null, loading: true, notFound: false });
 
   useEffect(() => {
-    if (!walletAddress) { setState({ profile: null, loading: false, notFound: true }); return; }
+    if (!walletAddress) {
+      const id = setTimeout(() => setState({ profile: null, loading: false, notFound: true }), 0);
+      return () => clearTimeout(id);
+    }
 
     let pubkey: PublicKey;
     try { pubkey = new PublicKey(walletAddress); }
-    catch { setState({ profile: null, loading: false, notFound: true }); return; }
+    catch {
+      const id = setTimeout(() => setState({ profile: null, loading: false, notFound: true }), 0);
+      return () => clearTimeout(id);
+    }
 
     let cancelled = false;
 
@@ -141,10 +147,11 @@ export function useWalletProfile(walletAddress: string | null): WalletProfileSta
       }
     }
 
-    setState({ profile: null, loading: true, notFound: false });
+    // Reset before the first load, outside the synchronous effect body.
+    const resetId = setTimeout(() => { if (!cancelled) setState({ profile: null, loading: true, notFound: false }); }, 0);
     load();
     const id = setInterval(load, 20_000);
-    return () => { cancelled = true; clearInterval(id); };
+    return () => { cancelled = true; clearTimeout(resetId); clearInterval(id); };
   }, [walletAddress]);
 
   return state;
