@@ -45,9 +45,11 @@ export function useDrawVotes(roundId: bigint | null | undefined): DrawVoteInfo[]
         const result: DrawVoteInfo[] = accounts.map((acc) => {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           const decoded = coder.accounts.decode<any>("DrawVote", acc.account.data);
+          // BorshCoder keeps the IDL's snake_case names; program.account.fetch camel-cases them.
+          const nodeKey: PublicKey = decoded.nodePubkey ?? decoded.node_pubkey;
           return {
-            nodePubkey: (decoded.nodePubkey as PublicKey).toBase58(),
-            winnerIndex: BigInt(decoded.winnerIndex.toString()),
+            nodePubkey: nodeKey.toBase58(),
+            winnerIndex: BigInt((decoded.winnerIndex ?? decoded.winner_index).toString()),
             votedAt: Date.now(),
           };
         });

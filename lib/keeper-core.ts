@@ -45,7 +45,7 @@ class KeypairWallet implements anchor.Wallet {
   }
 }
 
-export const PROG_ID = new PublicKey("HxoYg9RGSK4J7bbFkuUuPXiJqonKD9g5Dx6FiaBSVpob");
+export const PROG_ID = new PublicKey(process.env.NEXT_PUBLIC_PROGRAM_ID ?? "Ckvfj2PVnEseErjbjFYM9LtqwvZaVLCN6m8Vii7qPddF");
 export const DEFAULT_RPC = "https://api.devnet.solana.com";
 
 /** Errors that mean "try again next tick", not "the keeper is broken". */

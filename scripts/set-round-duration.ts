@@ -42,7 +42,7 @@ import {
 } from "@solana/web3.js";
 import IDL from "../lib/idl/pruv_lottery.json";
 
-const PROG_ID = new PublicKey("HxoYg9RGSK4J7bbFkuUuPXiJqonKD9g5Dx6FiaBSVpob");
+const PROG_ID = new PublicKey("Ckvfj2PVnEseErjbjFYM9LtqwvZaVLCN6m8Vii7qPddF");
 const FALLBACK_MS_PER_SLOT = 400;
 
 // anchor.Wallet only exists in the CJS build; keep this script self-contained.

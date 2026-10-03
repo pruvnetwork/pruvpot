@@ -70,7 +70,7 @@ export default function WinnerReveal({ winner, prizeSOL, roundId }: Props) {
             </div>
 
             <p className="text-xs text-zinc-600 mt-4 mb-4">
-              Transferred automatically via on-chain CPI
+              Paid out by the program at finalization
             </p>
 
             <div className="flex items-center justify-center gap-2 flex-wrap">

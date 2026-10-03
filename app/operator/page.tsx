@@ -13,7 +13,8 @@ import { getLotteryProgram, PROGRAM_ID, getConfigPDA, getLotteryStatePDA, u64LE 
 import IDL from "@/lib/idl/pruv_lottery.json";
 
 import { getConnection } from "@/lib/rpc";
-const OPERATOR = "6kacXz5Yb5X2RcsSt8GasPwdj3EfLGHJHy9YH7JLYPTP";
+import { DEFAULT_NODE_BPS, DEFAULT_TREASURY_BPS } from "@/lib/shares";
+const OPERATOR = process.env.NEXT_PUBLIC_OPERATOR ?? "9XvGmv2HCcr9BDVEwnj2oN9ZMrgEDATJDKk943tMUnxq";
 
 function fmtSol(lamports: bigint | number) {
   return (Number(lamports) / 1e9).toFixed(4) + " SOL";
@@ -394,7 +395,8 @@ export default function OperatorPage() {
                 <p className="px-5 py-4 text-xs text-zinc-600">No finalized rounds found in recent events</p>
               )}
               {earnedEvents.map((ev: any, i) => {
-                const nodeShare = ev.winnerShare ? (BigInt(ev.winnerShare) * 15n / 80n) : 0n;
+                // node pool share derived from the winner share with the config split (nodes : winner)
+                const nodeShare = ev.winnerShare ? (BigInt(ev.winnerShare) * BigInt(DEFAULT_NODE_BPS)) / BigInt(10_000 - DEFAULT_NODE_BPS - DEFAULT_TREASURY_BPS) : 0n;
                 return (
                   <div key={i} className="flex items-center gap-4 px-5 py-3 text-sm hover:bg-zinc-800/20 transition-colors">
                     <span className="font-mono text-zinc-500 w-12">#{ev.roundId.toString()}</span>

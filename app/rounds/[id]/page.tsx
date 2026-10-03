@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/Skeleton";
 import ShareButton from "@/components/ShareButton";
 import VerifyPanel from "@/components/VerifyPanel";
+import { winnerShareLamports } from "@/lib/shares";
 
 function fmtSol(lamports: bigint) {
   return (Number(lamports) / 1e9).toFixed(4) + " SOL";
@@ -29,7 +30,7 @@ export default function RoundPage({ params }: { params: Promise<{ id: string }> 
 
   if (error && !round && !loading) {
     return (
-      <div className="max-w-5xl mx-auto px-4 py-16 text-center space-y-2">
+      <div className="ops-dark max-w-5xl mx-auto px-4 py-16 text-center space-y-2">
         <p className="text-lg" style={{ color: "var(--text-secondary)" }}>Could not read round #{id} from devnet.</p>
         <p className="text-xs" style={{ color: "var(--text-muted)" }}>
           {/429|Too many|rate/i.test(error) ? "The RPC endpoint is rate-limiting; retrying every 15 s." : error}
@@ -41,7 +42,7 @@ export default function RoundPage({ params }: { params: Promise<{ id: string }> 
 
   if (notFound && !loading) {
     return (
-      <div className="max-w-5xl mx-auto px-4 py-16 text-center">
+      <div className="ops-dark max-w-5xl mx-auto px-4 py-16 text-center">
         <p className="text-zinc-500 text-lg">Round #{id} not found.</p>
         <Link href="/stats" className="text-violet-400 text-sm mt-3 inline-block hover:underline">
           ← Back to Stats
@@ -50,14 +51,14 @@ export default function RoundPage({ params }: { params: Promise<{ id: string }> 
     );
   }
 
-  const winnerPrizeLamports = round ? (round.prizePoolLamports * 80n) / 100n : 0n;
+  const winnerPrizeLamports = round ? winnerShareLamports(round.prizePoolLamports, round.nodeShareBps, round.treasuryShareBps) : 0n;
   const visibleTickets = round ? (showAll ? round.tickets : round.tickets.slice(0, 12)) : [];
   const statusLabel = round
     ? round.status === 0 ? "Open" : round.status === 1 ? "Committing" : "Closed"
     : "Loading…";
 
   return (
-    <div className="max-w-5xl mx-auto px-4 py-8 space-y-6">
+    <div className="ops-dark max-w-5xl mx-auto px-4 py-8 space-y-6">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-zinc-500">
         <Link href="/stats" className="hover:text-zinc-300 transition-colors">Stats</Link>

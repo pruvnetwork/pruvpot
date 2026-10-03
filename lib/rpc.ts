@@ -35,7 +35,11 @@ export function rpcEndpoint(): string {
 
 /** Websocket form of the current endpoint, for subscription-based hooks. */
 export function rpcWsEndpoint(): string {
-  return rpcEndpoint().replace("https://", "wss://").replace("http://", "ws://");
+  const http = rpcEndpoint();
+  // solana-test-validator serves JSON-RPC on 8899 and WebSocket on 8900.
+  const local = http.match(/^http:\/\/(127\.0\.0\.1|localhost):8899\/?$/);
+  if (local) return `ws://${local[1]}:8900/`;
+  return http.replace("https://", "wss://").replace("http://", "ws://");
 }
 
 export function getConnection(): Connection {

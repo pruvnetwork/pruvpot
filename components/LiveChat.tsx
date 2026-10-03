@@ -66,7 +66,7 @@ export default function LiveChat({
       if (ev.type === "TicketPurchased") {
         push({ type: "system-buy", wallet: ev.buyer, text: `bought ticket #${ev.index.toString()}` });
       } else if (ev.type === "DrawVoteCast") {
-        push({ type: "system-vote", text: `Node ${shortAddr(ev.node)} cast draw vote (${ev.voteCount}/1)` });
+        push({ type: "system-vote", text: `Node ${shortAddr(ev.node)} cast draw vote (vote #${ev.voteCount})` });
       } else if (ev.type === "RoundFinalized") {
         push({ type: "system-win", text: `🏆 ${shortAddr(ev.winner)} won round #${ev.roundId.toString()} — ${(Number(ev.winnerShare) / 1e9).toFixed(3)} SOL` });
       } else if (ev.type === "RoundOpened") {

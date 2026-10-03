@@ -63,6 +63,9 @@ export interface LotteryChainState {
   countdown: number;      // ms until end_slot
   currentSlot: number;
   ticketPriceLamports: bigint;
+  /** Prize split from the on-chain config (basis points). */
+  nodeShareBps: number;
+  treasuryShareBps: number;
   msPerSlot: number;      // measured, not assumed
   loading: boolean;
   error: string | null;
@@ -74,6 +77,8 @@ export function useLotteryState(): LotteryChainState {
     countdown: 0,
     currentSlot: 0,
     ticketPriceLamports: BigInt(10_000_000),
+    nodeShareBps: 1000,
+    treasuryShareBps: 500,
     msPerSlot: FALLBACK_MS_PER_SLOT,
     loading: true,
     error: null,
@@ -113,6 +118,8 @@ export function useLotteryState(): LotteryChainState {
         const ticketPriceLamports: bigint = BigInt(cfg.ticketPriceLamports.toString());
         const activeNodeCount: number = Number(cfg.activeNodeCount);
         const thresholdBps: bigint = BigInt(cfg.thresholdBps.toString());
+        const nodeShareBps: number = Number(cfg.nodeShareBps ?? 1000);
+        const treasuryShareBps: number = Number(cfg.treasuryShareBps ?? 500);
 
         if (currentRoundId === 0n) {
           if (!cancelled) setState(prev => ({ ...prev, loading: false, error: "No round open yet" }));
@@ -167,6 +174,8 @@ export function useLotteryState(): LotteryChainState {
             countdown,
             currentSlot,
             ticketPriceLamports,
+            nodeShareBps,
+            treasuryShareBps,
             msPerSlot,
             loading: false,
             error: null,

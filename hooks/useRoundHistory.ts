@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PublicKey } from "@solana/web3.js";
+import { winnerShareLamports } from "@/lib/shares";
 import { getConnection } from "@/lib/rpc";
 import { Program, AnchorProvider } from "@coral-xyz/anchor";
 import IDL from "@/lib/idl/pruv_lottery.json";
@@ -47,6 +48,8 @@ export function useRoundHistory(): RoundHistoryState {
         // ticket_price_lamports from config — used to reconstruct prize pool for finalized rounds
         // (program zeros prize_pool_lamports after finalization)
         const ticketPriceLamports = BigInt(cfg.ticketPriceLamports.toString());
+        const nodeBps = Number(cfg.nodeShareBps ?? 1000);
+        const treasuryBps = Number(cfg.treasuryShareBps ?? 500);
 
         if (currentRoundId === 0) {
           if (!cancelled) setState({ history: [], totalPaidLamports: 0n, loading: false });
@@ -93,7 +96,7 @@ export function useRoundHistory(): RoundHistoryState {
             txSig: "",
           });
 
-          totalPaidLamports += (prizePoolLamports * 80n) / 100n;
+          totalPaidLamports += winnerShareLamports(prizePoolLamports, nodeBps, treasuryBps);
         }
 
         // Most recent first

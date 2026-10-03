@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/pruv_lottery.json`.
  */
 export type PruvLottery = {
-  "address": "HxoYg9RGSK4J7bbFkuUuPXiJqonKD9g5Dx6FiaBSVpob",
+  "address": "Ckvfj2PVnEseErjbjFYM9LtqwvZaVLCN6m8Vii7qPddF",
   "metadata": {
     "name": "pruvLottery",
     "version": "0.1.0",
@@ -679,6 +679,87 @@ export type PruvLottery = {
         {
           "name": "nextRoundId",
           "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "updateConfig",
+      "docs": [
+        "Authority can rotate treasury and/or authority address, or adjust",
+        "ticket price and round duration. Pass `None` to leave a field unchanged.",
+        "Changes apply to rounds opened after this call; an open round keeps the",
+        "`end_slot` it was created with."
+      ],
+      "discriminator": [
+        29,
+        158,
+        252,
+        191,
+        10,
+        83,
+        219,
+        99
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        }
+      ],
+      "args": [
+        {
+          "name": "newTreasury",
+          "type": {
+            "option": "pubkey"
+          }
+        },
+        {
+          "name": "newAuthority",
+          "type": {
+            "option": "pubkey"
+          }
+        },
+        {
+          "name": "newTicketPrice",
+          "type": {
+            "option": "u64"
+          }
+        },
+        {
+          "name": "newRoundDurationSlots",
+          "type": {
+            "option": "u64"
+          }
         }
       ]
     },

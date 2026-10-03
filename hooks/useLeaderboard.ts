@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PublicKey } from "@solana/web3.js";
+import { winnerShareLamports } from "@/lib/shares";
 import { getConnection } from "@/lib/rpc";
 import { Program, AnchorProvider } from "@coral-xyz/anchor";
 import IDL from "@/lib/idl/pruv_lottery.json";
@@ -96,7 +97,7 @@ export function useLeaderboard(): LeaderboardState {
             const winnerKey = winner.toBase58();
             const ticketCount = BigInt(s.ticketCount.toString());
             const prizePool = ticketCount * ticketPriceLamports;
-            const winnerShare = (prizePool * 80n) / 100n;
+            const winnerShare = winnerShareLamports(prizePool);
 
             const existing = walletMap.get(winnerKey) ?? { tickets: 0, spent: 0n, wins: 0, wonLamports: 0n };
             walletMap.set(winnerKey, { ...existing, wins: existing.wins + 1, wonLamports: existing.wonLamports + winnerShare });

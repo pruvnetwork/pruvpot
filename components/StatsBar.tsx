@@ -19,7 +19,7 @@ export default function StatsBar({ totalRounds, totalPaidSol, activePlayers, tic
       <div className="max-w-5xl mx-auto flex items-center justify-center gap-6 sm:gap-10 flex-wrap">
         <Stat label="Total Rounds" value={totalRounds.toString()} />
         <span className="hidden sm:block w-px h-4" style={{ background: "var(--border-default)" }} />
-        <Stat label="Total Prizes Paid" value={`${totalPaidSol.toFixed(1)} SOL`} accent />
+        <Stat label="Total Prizes Paid" value={`${totalPaidSol.toFixed(3)} SOL`} accent />
         <span className="hidden sm:block w-px h-4" style={{ background: "var(--border-default)" }} />
         <Stat label="Active Players" value={activePlayers.toLocaleString()} />
         <span className="hidden sm:block w-px h-4" style={{ background: "var(--border-default)" }} />

@@ -31,6 +31,8 @@ export interface RoundVote {
 }
 
 export interface RoundDetail {
+  nodeShareBps: number;
+  treasuryShareBps: number;
   roundId: bigint;
   status: number;
   ticketCount: bigint;
@@ -71,6 +73,8 @@ export function useRoundDetail(roundId: number): RoundDetailState {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const cfg: any = await (program.account as any).lotteryConfig.fetch(configPDA);
         const ticketPriceLamports = BigInt(cfg.ticketPriceLamports.toString());
+        const nodeShareBps = Number(cfg.nodeShareBps ?? 1000);
+        const treasuryShareBps = Number(cfg.treasuryShareBps ?? 500);
 
         // Round state
         const rid = BigInt(roundId);
@@ -141,6 +145,7 @@ export function useRoundDetail(roundId: number): RoundDetailState {
         }
 
         const detail: RoundDetail = {
+          nodeShareBps, treasuryShareBps,
           roundId: rid, status, ticketCount, endSlot,
           prizePoolLamports, ticketPriceLamports,
           winner, winnerIndex, tickets, votes,

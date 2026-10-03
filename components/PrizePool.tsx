@@ -2,18 +2,23 @@
 
 import { useState, useEffect } from "react";
 import AnimatedNumber from "./AnimatedNumber";
+import { DEFAULT_NODE_BPS, DEFAULT_TREASURY_BPS, splitPrize } from "@/lib/shares";
 
 interface Props {
   prizePoolLamports: bigint;
   ticketCount: bigint;
   ticketPriceSol: number;
+  nodeBps?: number;
+  treasuryBps?: number;
 }
 
-export default function PrizePool({ prizePoolLamports, ticketCount, ticketPriceSol }: Props) {
+export default function PrizePool({ prizePoolLamports, ticketCount, ticketPriceSol, nodeBps = DEFAULT_NODE_BPS, treasuryBps = DEFAULT_TREASURY_BPS }: Props) {
   const total = Number(prizePoolLamports) / 1_000_000_000;
-  const winnerShare = total * 0.8;
-  const nodeShare = total * 0.15;
-  const treasuryShare = total * 0.05;
+  const split = splitPrize(prizePoolLamports, nodeBps, treasuryBps);
+  const winnerShare = Number(split.winner) / 1e9;
+  const nodeShare = Number(split.nodes) / 1e9;
+  const treasuryShare = Number(split.treasury) / 1e9;
+  const winnerP = (10_000 - nodeBps - treasuryBps) / 100;
 
   const [isDark, setIsDark] = useState(false);
   useEffect(() => {
@@ -53,9 +58,9 @@ export default function PrizePool({ prizePoolLamports, ticketCount, ticketPriceS
       </p>
 
       <div className="flex gap-2 sm:gap-3 mt-4 justify-center">
-        <SharePill label="Winner" value={winnerShare} pct={80} color="emerald" isDark={isDark} />
-        <SharePill label="Nodes" value={nodeShare} pct={15} color="sky" isDark={isDark} />
-        <SharePill label="Treasury" value={treasuryShare} pct={5} color="zinc" isDark={isDark} />
+        <SharePill label="Winner" value={winnerShare} pct={winnerP} color="emerald" isDark={isDark} />
+        <SharePill label="Nodes" value={nodeShare} pct={nodeBps / 100} color="sky" isDark={isDark} />
+        <SharePill label="Treasury" value={treasuryShare} pct={treasuryBps / 100} color="zinc" isDark={isDark} />
       </div>
     </div>
   );

@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useRoundHistory } from "@/hooks/useRoundHistory";
 import { useLotteryState } from "@/hooks/useLotteryState";
 import { Skeleton } from "@/components/Skeleton";
+import { winnerPct } from "@/lib/shares";
 
 export default function StatsPage() {
   const { history, totalPaidLamports, loading: historyLoading } = useRoundHistory();
-  const { round, loading: roundLoading } = useLotteryState();
+  const { round, nodeShareBps, treasuryShareBps, loading: roundLoading } = useLotteryState();
+  const wPct = winnerPct(nodeShareBps, treasuryShareBps);
 
   const loading = historyLoading || roundLoading;
 
@@ -120,7 +122,7 @@ export default function StatsPage() {
             <tbody>
               {history.map((r) => {
                 const poolSOL = Number(r.prizePoolLamports) / 1e9;
-                const winnerPrize = (poolSOL * 0.8).toFixed(4);
+                const winnerPrize = (poolSOL * wPct / 100).toFixed(4);
                 const winnerShort = r.winner === "—"
                   ? "—"
                   : `${r.winner.slice(0, 4)}…${r.winner.slice(-4)}`;
@@ -157,9 +159,9 @@ export default function StatsPage() {
       <div className="rounded-xl p-5" style={{ background: "var(--surface-secondary)", border: "1px solid var(--border-default)", boxShadow: "var(--shadow-panel)" }}>
         <h2 className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>Protocol Revenue (All Time)</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <RevenueCard label="Treasury (5%)"        sol={totalPrizeSOL * 0.05} color="violet" />
-          <RevenueCard label="Node Operators (15%)" sol={totalPrizeSOL * 0.15} color="sky" />
-          <RevenueCard label="Winners (80%)"        sol={totalPrizeSOL * 0.80} color="emerald" />
+          <RevenueCard label={`Treasury (${treasuryShareBps / 100}%)`} sol={totalPrizeSOL * treasuryShareBps / 10_000} color="violet" />
+          <RevenueCard label={`Node Operators (${nodeShareBps / 100}%)`} sol={totalPrizeSOL * nodeShareBps / 10_000} color="sky" />
+          <RevenueCard label={`Winners (${wPct}%)`} sol={totalPrizeSOL * wPct / 100} color="emerald" />
         </div>
       </div>
       </>}

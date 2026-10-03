@@ -22,11 +22,13 @@ import { buyTicket } from "@/lib/lottery-client";
 import { useLotteryState } from "@/hooks/useLotteryState";
 import { useRoundHistory } from "@/hooks/useRoundHistory";
 import { useDrawVotes } from "@/hooks/useDrawVotes";
+import { winnerShareLamports } from "@/lib/shares";
 
-// Single known node operator on devnet
-const DEVNET_NODES: NodeInfo[] = [
+// Known operator(s) shown before any vote has been cast this round. Once votes
+// exist, the list is built from the on-chain DrawVote accounts instead.
+const KNOWN_NODES: NodeInfo[] = [
   {
-    operatorPubkey: "6kacXz5Yb5X2RcsSt8GasPwdj3EfLGHJHy9YH7JLYPTP",
+    operatorPubkey: process.env.NEXT_PUBLIC_OPERATOR ?? "9XvGmv2HCcr9BDVEwnj2oN9ZMrgEDATJDKk943tMUnxq",
     stakeAmount: 0n,
     reputation: 100,
     totalAttestations: 0,
@@ -35,7 +37,7 @@ const DEVNET_NODES: NodeInfo[] = [
 ];
 
 export default function Home() {
-  const { round, countdown, ticketPriceLamports, loading, error } = useLotteryState();
+  const { round, countdown, ticketPriceLamports, nodeShareBps, treasuryShareBps, loading, error } = useLotteryState();
   const { history, totalPaidLamports } = useRoundHistory();
   const votes = useDrawVotes(round?.roundId ?? null);
   const [winner, setWinner] = useState<string | null>(null);
@@ -99,6 +101,12 @@ export default function Home() {
   );
 
   const requiredVotes = Math.ceil((Math.max(1, round.activeNodeCount) * 2) / 3);
+  // finalize_draw zeroes prize_pool_lamports on-chain; reconstruct it for display.
+  const poolLamports = round.prizePoolLamports > 0n ? round.prizePoolLamports : round.ticketCount * ticketPriceLamports;
+  const winnerSol = Number(winnerShareLamports(poolLamports, nodeShareBps, treasuryShareBps)) / 1e9;
+  const nodeList: NodeInfo[] = votes.length
+    ? votes.map((v) => ({ operatorPubkey: v.nodePubkey, stakeAmount: 0n, reputation: 100, totalAttestations: 0, isActive: true }))
+    : KNOWN_NODES;
 
   // On-chain status stays `Open` until a node casts its draw vote, but the
   // program rejects buy_ticket once `end_slot` passes (LotteryError::RoundEnded).
@@ -112,7 +120,7 @@ export default function Home() {
       {showBanner && winner && (
         <WinnerBanner
           winner={winner}
-          prizeSOL={(Number(round.prizePoolLamports) * 0.8) / 1e9}
+          prizeSOL={winnerSol}
           roundId={round.roundId}
           onClose={() => setShowBanner(false)}
         />
@@ -168,9 +176,11 @@ export default function Home() {
             </div>
 
             <PrizePool
-              prizePoolLamports={round.prizePoolLamports}
+              prizePoolLamports={poolLamports}
               ticketCount={round.ticketCount}
               ticketPriceSol={Number(ticketPriceLamports) / 1e9}
+              nodeBps={nodeShareBps}
+              treasuryBps={treasuryShareBps}
             />
 
             {/* Sales closed, but no node has cast a draw vote yet */}
@@ -234,7 +244,7 @@ export default function Home() {
             {winner && round.status === 2 && (
               <WinnerReveal
                 winner={winner}
-                prizeSOL={(Number(round.prizePoolLamports) * 0.8) / 1e9}
+                prizeSOL={winnerSol}
                 roundId={round.roundId}
               />
             )}
@@ -258,7 +268,7 @@ export default function Home() {
                   More players = bigger jackpot
                 </p>
                 <ShareButton
-                  text={`🎰 PRUVPOT Round #${round.roundId.toString()} is live — ${(Number(round.prizePoolLamports) / 1e9).toFixed(3)} SOL prize pool. Provably fair lottery on Solana. No trust required.`}
+                  text={`🎰 PRUVPOT Round #${round.roundId.toString()} is live — ${(Number(poolLamports) / 1e9).toFixed(3)} SOL prize pool. Provably fair lottery on Solana. No trust required.`}
                   label="Invite friends"
                   variant="full"
                 />
@@ -281,12 +291,13 @@ export default function Home() {
 
         {/* Right — trust sidebar + chat */}
         <div className="lg:sticky lg:top-[56px] space-y-4 lg:max-h-[calc(100vh-72px)] lg:overflow-y-auto lg:pb-4">
-          <ProgramCard activeNodes={DEVNET_NODES.length} />
+          <ProgramCard activeNodes={round.activeNodeCount} />
 
           <NodeConsensus
-            nodes={DEVNET_NODES}
+            nodes={nodeList}
             votes={votes}
             required={requiredVotes}
+            registered={round.activeNodeCount}
             status={round.status}
           />
 
@@ -300,7 +311,7 @@ export default function Home() {
               ["1", "Buy a ticket for 0.01 SOL"],
               ["2", "Round ends at a fixed Solana slot"],
               ["3", "Nodes derive the winner from that slot's hash"],
-              ["4", `≥ 2/3 of registered nodes must agree (${DEVNET_NODES.length} node on devnet today)`],
+              ["4", `≥ 2/3 of registered nodes must agree (${round.activeNodeCount} registered)`],
               ["5", "Program pays the winner, treasury and node pool"],
             ].map(([n, text]) => (
               <div key={n} className="flex gap-2.5 text-xs">

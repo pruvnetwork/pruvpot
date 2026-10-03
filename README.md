@@ -1,7 +1,7 @@
 # PRUVPOT
 
 Provably fair lottery on Solana devnet, built on the PRUV lottery program
-(`HxoYg9RGSK4J7bbFkuUuPXiJqonKD9g5Dx6FiaBSVpob`).
+(`Ckvfj2PVnEseErjbjFYM9LtqwvZaVLCN6m8Vii7qPddF`).
 
 ## What can be verified, and how
 

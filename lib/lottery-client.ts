@@ -7,7 +7,7 @@ import { getConnection } from "./rpc";
 import IDL from "./idl/pruv_lottery.json";
 import type { PruvLottery } from "./idl/pruv_lottery";
 
-export const PROGRAM_ID = new PublicKey("HxoYg9RGSK4J7bbFkuUuPXiJqonKD9g5Dx6FiaBSVpob");
+export const PROGRAM_ID = new PublicKey(process.env.NEXT_PUBLIC_PROGRAM_ID ?? "Ckvfj2PVnEseErjbjFYM9LtqwvZaVLCN6m8Vii7qPddF");
 
 
 // Buffer.writeBigUInt64LE is unavailable in browser polyfills — use DataView instead.

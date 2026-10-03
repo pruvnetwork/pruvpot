@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PublicKey } from "@solana/web3.js";
+import { winnerShareLamports } from "@/lib/shares";
 import { getConnection } from "@/lib/rpc";
 import { Program, AnchorProvider } from "@coral-xyz/anchor";
 import IDL from "@/lib/idl/pruv_lottery.json";
@@ -157,7 +158,7 @@ export function useMyTickets(walletAddress: string | null): MyTicketsState {
               if (rs.winner === walletAddress) {
                 status = "won";
                 const pool = rs.ticketCount * ticketPriceLamports;
-                prizeWonLamports = (pool * 80n) / 100n;
+                prizeWonLamports = winnerShareLamports(pool);
               } else {
                 status = "lost";
               }

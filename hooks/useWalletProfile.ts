@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { PublicKey } from "@solana/web3.js";
+import { winnerShareLamports } from "@/lib/shares";
 import { getConnection } from "@/lib/rpc";
 import { AnchorProvider, Program, utils } from "@coral-xyz/anchor";
 import IDL from "@/lib/idl/pruv_lottery.json";
@@ -112,7 +113,7 @@ export function useWalletProfile(walletAddress: string | null): WalletProfileSta
           const winnerKey: PublicKey = state.winner;
           const isWinner = !winnerKey.equals(PublicKey.default) && winnerKey.equals(pubkey);
           const prizePoolLamports = ticketCount * ticketPriceLamports;
-          const winnerShare = (prizePoolLamports * 80n) / 100n;
+          const winnerShare = winnerShareLamports(prizePoolLamports);
           const prizeWonLamports = isWinner ? winnerShare : 0n;
           const result: "active" | "won" | "lost" =
             status < 2 ? "active" : isWinner ? "won" : "lost";

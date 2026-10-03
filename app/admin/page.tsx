@@ -13,7 +13,7 @@ import { getLotteryProgram, PROGRAM_ID, getConfigPDA, getLotteryStatePDA, getTic
 import IDL from "@/lib/idl/pruv_lottery.json";
 
 import { getConnection } from "@/lib/rpc";
-const AUTHORITY = "Ddk15nuwaK3HZ8evHSwN93n1n3Xk4Gr8mt4fYN5TE1s1";
+const AUTHORITY = process.env.NEXT_PUBLIC_AUTHORITY ?? "9XvGmv2HCcr9BDVEwnj2oN9ZMrgEDATJDKk943tMUnxq";
 
 function fmtLamports(l: bigint | number) {
   return (Number(l) / 1e9).toFixed(4) + " SOL";

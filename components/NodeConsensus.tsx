@@ -7,10 +7,12 @@ interface Props {
   nodes: NodeInfo[];
   votes: DrawVoteInfo[];
   required: number;
+  /** active_node_count from the on-chain config. */
+  registered?: number;
   status: 0 | 1 | 2;
 }
 
-export default function NodeConsensus({ nodes, votes, required, status }: Props) {
+export default function NodeConsensus({ nodes, votes, required, registered, status }: Props) {
   const votedSet = new Set(votes.map((v) => v.nodePubkey));
 
   return (
@@ -25,7 +27,7 @@ export default function NodeConsensus({ nodes, votes, required, status }: Props)
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Node Consensus</h3>
         <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-          {votes.length}/{required} votes · {nodes.length} registered node{nodes.length === 1 ? "" : "s"}
+          {votes.length}/{required} votes · {registered ?? nodes.length} registered node{(registered ?? nodes.length) === 1 ? "" : "s"}
         </span>
       </div>
 
