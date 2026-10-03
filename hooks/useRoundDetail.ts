@@ -47,6 +47,8 @@ export interface RoundDetailState {
   detail: RoundDetail | null;
   loading: boolean;
   notFound: boolean;
+  /** Set when the chain read failed (RPC error / rate limit) — distinct from "round does not exist". */
+  error?: string;
 }
 
 export function useRoundDetail(roundId: number): RoundDetailState {
@@ -117,12 +119,15 @@ export function useRoundDetail(roundId: number): RoundDetailState {
         let winnerIndex: bigint | null = null;
         const votes: RoundVote[] = voteAccs.map(({ account }) => {
           const decoded = coder.accounts.decode<any>("DrawVote", account.data);
-          const wi = BigInt(decoded.winnerIndex.toString());
+          // BorshCoder.decode keeps the IDL's snake_case field names, unlike
+          // program.account.*.fetch which camel-cases them. Accept both.
+          const wi = BigInt((decoded.winnerIndex ?? decoded.winner_index).toString());
           if (winnerIndex === null) winnerIndex = wi;
-          const slotHashBytes: number[] = decoded.slotHashUsed;
+          const slotHashBytes: number[] = decoded.slotHashUsed ?? decoded.slot_hash_used;
           const slotHash = Buffer.from(slotHashBytes).toString("hex");
+          const nodeKey: PublicKey = decoded.nodePubkey ?? decoded.node_pubkey;
           return {
-            node: (decoded.nodePubkey as PublicKey).toBase58(),
+            node: nodeKey.toBase58(),
             winnerIndex: wi,
             slotHash,
             claimed: Boolean(decoded.claimed),
@@ -142,8 +147,10 @@ export function useRoundDetail(roundId: number): RoundDetailState {
         };
 
         if (!cancelled) setState({ detail, loading: false, notFound: false });
-      } catch {
-        if (!cancelled) setState({ detail: null, loading: false, notFound: true });
+      } catch (e) {
+        // A failed RPC read is not "round not found": keep whatever we had and surface the error.
+        const msg = e instanceof Error ? e.message : "chain read failed";
+        if (!cancelled) setState(prev => ({ detail: prev.detail, loading: false, notFound: false, error: msg }));
       }
     }
 
