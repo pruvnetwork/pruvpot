@@ -147,7 +147,7 @@ export default function VerifyPanel({ roundId, endSlot, ticketCount, defaultOpen
               git clone https://github.com/pruvnetwork/pruv && cd pruv/tools/verify-round && npm i
             </p>
             <p className="break-all" style={{ color: "var(--purple-primary)" }}>
-              node verify-round.ts {roundId.toString()} --rpc &lt;your RPC URL&gt;
+              node verify-round.ts {roundId.toString()}{" "}--rpc &lt;your RPC URL&gt;
             </p>
             <p style={{ color: "var(--text-muted)" }}>
               One file, no PRUV library: it decodes the accounts by hand and prints every input. Byte-level rule:{" "}
