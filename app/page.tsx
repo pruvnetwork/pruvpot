@@ -18,7 +18,7 @@ import LiveChat from "@/components/LiveChat";
 import { RoundCardSkeleton, NodeSkeleton, Skeleton } from "@/components/Skeleton";
 import { formatCountdown } from "@/lib/utils";
 import type { NodeInfo } from "@/lib/types";
-import { buyTicket } from "@/lib/lottery-client";
+import { buyTicket, initializeRound } from "@/lib/lottery-client";
 import { useLotteryState } from "@/hooks/useLotteryState";
 import { useRoundHistory } from "@/hooks/useRoundHistory";
 import { useDrawVotes } from "@/hooks/useDrawVotes";
@@ -57,6 +57,18 @@ export default function Home() {
   const { connected } = useWallet();
   const { connection } = useConnection();
   const anchorWallet = useAnchorWallet();
+
+  const [opening, setOpening] = useState<string | null>(null);
+  const handleOpenNext = useCallback(async () => {
+    if (!anchorWallet || !connected || !round) return;
+    setOpening("sending");
+    try {
+      const sig = await initializeRound(anchorWallet, connection, round.roundId + 1n);
+      setOpening(`opened · ${sig.slice(0, 8)}…`);
+    } catch (e) {
+      setOpening(e instanceof Error ? e.message : "failed");
+    }
+  }, [anchorWallet, connected, connection, round]);
 
   const handleBuy = useCallback(async () => {
     if (!anchorWallet || !connected || !round) throw new Error("Wallet not connected");
@@ -257,6 +269,23 @@ export default function Home() {
                 ended={roundEnded}
               />
             </div>
+
+            {/* Round opening is permissionless: no operator is needed to continue. */}
+            {round.status === 2 && (
+              <div className="mt-3 flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border" style={{ background: "var(--surface-secondary)", borderColor: "var(--border-soft)" }}>
+                <p className="text-xs" style={{ color: "var(--text-muted)" }}>
+                  Anyone can open round #{(round.roundId + 1n).toString()} — no operator required.
+                </p>
+                <button
+                  onClick={handleOpenNext}
+                  disabled={!connected || opening === "sending"}
+                  className="text-xs font-semibold px-3 py-1.5 rounded-lg disabled:opacity-50"
+                  style={{ background: "var(--purple-primary)", color: "#fff" }}
+                >
+                  {opening ?? (connected ? "Open next round" : "Connect to open")}
+                </button>
+              </div>
+            )}
 
             {/* Viral share nudge */}
             {round.status === 0 && !roundEnded && (

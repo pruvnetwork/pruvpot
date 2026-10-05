@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import { PROGRAM_ID } from "@/lib/lottery-client";
+import { useEffect, useState } from "react";
+import { PROGRAM_ID, fetchConfigLocked } from "@/lib/lottery-client";
+import { fetchProgramInfo, type ProgramInfo } from "@/lib/program-info";
+import { getConnection } from "@/lib/rpc";
 import { shortenAddress } from "@/lib/utils";
 
 /**
@@ -11,7 +13,24 @@ import { shortenAddress } from "@/lib/utils";
  */
 export default function ProgramCard({ activeNodes }: { activeNodes: number }) {
   const [expanded, setExpanded] = useState(false);
+  const [locked, setLocked] = useState<boolean | null>(null);
+  const [info, setInfo] = useState<ProgramInfo | null>(null);
   const id = PROGRAM_ID.toBase58();
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const conn = getConnection();
+      const [l, i] = await Promise.all([fetchConfigLocked(conn).catch(() => null), fetchProgramInfo(conn)]);
+      if (!cancelled) { setLocked(l); setInfo(i); }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const upgradeLabel =
+    info?.upgradeAuthority === undefined ? "reading…"
+    : info.upgradeAuthority === null ? "immutable (authority revoked)"
+    : `upgradeable by ${shortenAddress(info.upgradeAuthority, 4)}`;
 
   return (
     <div
@@ -44,11 +63,18 @@ export default function ProgramCard({ activeNodes }: { activeNodes: number }) {
           <Row label="Winner rule" value="on-chain, re-derived per vote" />
           <Row label="Nodes" value={`${activeNodes} active on devnet`} />
           <Row label="Payout" value="program-owned PDA → wallets" />
+          <Row label="Config" value={locked === null ? "reading…" : locked ? "locked (irreversible)" : "changeable by authority"} />
+          <Row
+            label="Bytecode"
+            value={upgradeLabel}
+            href={info?.upgradeAuthority ? `https://explorer.solana.com/address/${info.upgradeAuthority}?cluster=devnet` : undefined}
+          />
           <Row label="ZK attestation" value="not live yet" />
           <p className="mt-3 text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
             Everything above can be checked from public chain data (see “Verify this round yourself”).
-            PRUV’s node attestation and zero-knowledge allocation proofs are being integrated and are not
-            part of this devnet deployment; nothing here is attested by a ZK proof today.
+            The operator cannot choose a winner; what it can still do is listed honestly above: change
+            config until it is locked, and upgrade the program while an upgrade authority exists.
+            PRUV’s zero-knowledge allocation proofs are not part of this devnet deployment.
           </p>
         </div>
       )}

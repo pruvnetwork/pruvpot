@@ -9,7 +9,7 @@ import { useToast } from "@/components/Toast";
 import { useLotteryState } from "@/hooks/useLotteryState";
 import { useDrawVotes } from "@/hooks/useDrawVotes";
 import { useOnChainEvents } from "@/hooks/useOnChainEvents";
-import { getLotteryProgram, PROGRAM_ID, getConfigPDA, getLotteryStatePDA, getTicketPDA, u64LE } from "@/lib/lottery-client";
+import { getLotteryProgram, PROGRAM_ID, getConfigPDA, getLotteryStatePDA, getTicketPDA, u64LE, fetchConfigLocked, lockConfig } from "@/lib/lottery-client";
 import IDL from "@/lib/idl/pruv_lottery.json";
 
 import { getConnection } from "@/lib/rpc";
@@ -69,6 +69,7 @@ interface ChainConfig {
 function useAdminConfig() {
   const [cfg, setCfg] = useState<ChainConfig | null>(null);
   const [treasuryBalance, setTreasuryBalance] = useState<bigint>(0n);
+  const [locked, setLocked] = useState<boolean | null>(null);
 
   useEffect(() => {
     const conn = getConnection();
@@ -103,6 +104,7 @@ function useAdminConfig() {
         setCfg(config);
         const bal = await conn.getBalance(new PublicKey(treasury));
         setTreasuryBalance(BigInt(bal));
+        setLocked(await fetchConfigLocked(conn));
       } catch (e) {
         console.error("Config fetch error", e);
       }
@@ -113,7 +115,7 @@ function useAdminConfig() {
     return () => clearInterval(id);
   }, []);
 
-  return { cfg, treasuryBalance };
+  return { cfg, treasuryBalance, locked };
 }
 
 // ── IxButton ───────────────────────────────────────────────────────────────────
@@ -175,7 +177,8 @@ export default function AdminPage() {
   const { round, loading: roundLoading } = useLotteryState();
   const votes = useDrawVotes(round?.roundId ?? null);
   const events = useOnChainEvents(30);
-  const { cfg, treasuryBalance } = useAdminConfig();
+  const { cfg, treasuryBalance, locked } = useAdminConfig();
+  const [lockArmed, setLockArmed] = useState(false);
 
   const onAuth = useCallback(() => setAuthed(true), []);
   if (!authed) return <AuthGate onAuth={onAuth} />;
@@ -237,6 +240,18 @@ export default function AdminPage() {
       setNewAuthority("");
     } catch (e) {
       toast(e instanceof Error ? e.message.slice(0, 80) : "TX failed", "error");
+    }
+  }
+
+  async function handleLock() {
+    if (!canSign) { toast("Connect authority wallet", "error"); return; }
+    if (!lockArmed) { setLockArmed(true); return; }
+    try {
+      const sig = await lockConfig(anchorWallet, connection);
+      toast(`lock_config sent · ${sig.slice(0, 8)}…`, "success");
+      setLockArmed(false);
+    } catch (e) {
+      toast(e instanceof Error ? e.message : "lock_config failed", "error");
     }
   }
 
@@ -364,10 +379,40 @@ export default function AdminPage() {
 
           {/* Config Controls */}
           <Section title="Config Instructions" icon="⚙">
+            {/* Lock status — irreversible freeze of every authority-controlled parameter */}
+            <div className={cn("p-4 rounded-xl space-y-2 border", locked ? "border-emerald-800 bg-emerald-950/20" : "border-amber-800 bg-amber-950/20")}>
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-zinc-200">
+                    {locked === null ? "Config lock: reading…" : locked ? "Config locked" : "Config NOT locked"}
+                  </p>
+                  <p className="text-xs text-zinc-500 mt-0.5">
+                    {locked
+                      ? "Ticket price, round duration, treasury, authority and node count are frozen forever. Rounds keep running."
+                      : "The authority can still change price, duration, treasury and node count. Locking is irreversible."}
+                  </p>
+                </div>
+                {!locked && (
+                  <button
+                    onClick={handleLock}
+                    disabled={!canSign || locked === null}
+                    className={cn("shrink-0 px-3 py-2 rounded-lg text-xs font-semibold transition-all text-white",
+                      lockArmed ? "bg-red-700 hover:bg-red-600" : "bg-amber-700 hover:bg-amber-600",
+                      "disabled:bg-zinc-700 disabled:text-zinc-500")}
+                  >
+                    {lockArmed ? "Confirm: lock forever" : "lock_config"}
+                  </button>
+                )}
+              </div>
+              {lockArmed && !locked && (
+                <button onClick={() => setLockArmed(false)} className="text-xs text-zinc-500 hover:text-zinc-300">cancel</button>
+              )}
+            </div>
+
             <IxButton
               label="update_node_count · Sync operators"
-              description={`Current: ${cfg?.activeNodeCount ?? "?"} nodes — updates threshold for draw votes`}
-              disabled={!canSign}
+              description={locked ? "Frozen by lock_config" : `Current: ${cfg?.activeNodeCount ?? "?"} nodes — updates threshold for draw votes`}
+              disabled={!canSign || !!locked}
               onClick={handleUpdateNodeCount}
             />
 
@@ -402,7 +447,7 @@ export default function AdminPage() {
               </div>
               <button
                 onClick={handleUpdateConfig}
-                disabled={!canSign || (!newTreasury.trim() && !newAuthority.trim())}
+                disabled={!canSign || !!locked || (!newTreasury.trim() && !newAuthority.trim())}
                 className="w-full py-2 rounded-lg text-xs font-semibold transition-all bg-violet-700 hover:bg-violet-600 disabled:bg-zinc-700 disabled:text-zinc-500 text-white"
               >
                 Send update_config TX

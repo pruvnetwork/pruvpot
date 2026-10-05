@@ -683,6 +683,91 @@ export type PruvLottery = {
       ]
     },
     {
+      "name": "lockConfig",
+      "docs": [
+        "Permanently freezes the configuration. Creates the `lottery_lock` PDA;",
+        "while it exists, `update_config` and `update_node_count` are rejected.",
+        "There is no unlock. Round opening, ticket sales, voting, finalization",
+        "and claims are unaffected (none of them are authority-gated)."
+      ],
+      "discriminator": [
+        140,
+        30,
+        78,
+        170,
+        92,
+        132,
+        150,
+        212
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "lock",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121,
+                  95,
+                  108,
+                  111,
+                  99,
+                  107
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "authority",
+          "writable": true,
+          "signer": true,
+          "relations": [
+            "config"
+          ]
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "updateConfig",
       "docs": [
         "Authority can rotate treasury and/or authority address, or adjust",
@@ -723,6 +808,33 @@ export type PruvLottery = {
                   102,
                   105,
                   103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "lock",
+          "docs": [
+            "to succeed; once `lock_config` has created it, config is frozen forever."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121,
+                  95,
+                  108,
+                  111,
+                  99,
+                  107
                 ]
               }
             ]
@@ -804,6 +916,33 @@ export type PruvLottery = {
           }
         },
         {
+          "name": "lock",
+          "docs": [
+            "to succeed; once `lock_config` has created it, config is frozen forever."
+          ],
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121,
+                  95,
+                  108,
+                  111,
+                  99,
+                  107
+                ]
+              }
+            ]
+          }
+        },
+        {
           "name": "authority",
           "signer": true,
           "relations": [
@@ -843,6 +982,19 @@ export type PruvLottery = {
         81,
         20,
         237,
+        24
+      ]
+    },
+    {
+      "name": "lotteryLock",
+      "discriminator": [
+        42,
+        204,
+        227,
+        52,
+        9,
+        81,
+        91,
         24
       ]
     },
@@ -900,6 +1052,19 @@ export type PruvLottery = {
     }
   ],
   "events": [
+    {
+      "name": "configLocked",
+      "discriminator": [
+        111,
+        41,
+        37,
+        92,
+        41,
+        202,
+        238,
+        59
+      ]
+    },
     {
       "name": "drawVoteCast",
       "discriminator": [
@@ -1041,9 +1206,30 @@ export type PruvLottery = {
       "code": 6014,
       "name": "unauthorized",
       "msg": "unauthorised"
+    },
+    {
+      "code": 6015,
+      "name": "configLocked",
+      "msg": "Configuration is locked"
     }
   ],
   "types": [
+    {
+      "name": "configLocked",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
+            "name": "by",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
     {
       "name": "drawVote",
       "type": {
@@ -1149,6 +1335,29 @@ export type PruvLottery = {
           {
             "name": "currentRoundId",
             "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "lotteryLock",
+      "docs": [
+        "Exists only after `lock_config`; its presence freezes the config forever."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "lockedAtSlot",
+            "type": "u64"
+          },
+          {
+            "name": "lockedBy",
+            "type": "pubkey"
           },
           {
             "name": "bump",

@@ -84,3 +84,38 @@ export async function fetchLotteryState(connection: Connection, roundId: bigint)
     return null;
   }
 }
+
+// ─── Config lock + permissionless round opening ──────────────────────────────
+
+export function getLockPDA(): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync([Buffer.from("lottery_lock")], PROGRAM_ID);
+}
+
+/** True once `lock_config` has been called (the lock PDA exists). */
+export async function fetchConfigLocked(connection: Connection): Promise<boolean> {
+  const [lock] = getLockPDA();
+  const info = await connection.getAccountInfo(lock, "confirmed");
+  return !!info && info.data.length > 0;
+}
+
+/** Irreversible: freezes ticket price, round duration, treasury, authority and node count. */
+export async function lockConfig(wallet: AnchorWallet, connection: Connection): Promise<string> {
+  const program = getLotteryProgram(wallet, connection);
+  const [configPDA] = getConfigPDA();
+  const [lock] = getLockPDA();
+  return program.methods
+    .lockConfig()
+    .accounts({ config: configPDA, lock, authority: wallet.publicKey, systemProgram: SystemProgram.programId })
+    .rpc();
+}
+
+/** Permissionless: anyone can open the next round (and pays its rent). */
+export async function initializeRound(wallet: AnchorWallet, connection: Connection, nextRoundId: bigint): Promise<string> {
+  const program = getLotteryProgram(wallet, connection);
+  const [configPDA] = getConfigPDA();
+  const [statePDA] = getLotteryStatePDA(nextRoundId);
+  return program.methods
+    .initializeRound(new BN(nextRoundId.toString()))
+    .accounts({ config: configPDA, lotteryState: statePDA, payer: wallet.publicKey, systemProgram: SystemProgram.programId })
+    .rpc();
+}
