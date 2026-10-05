@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { getConnection } from "@/lib/rpc";
 import { verifyRound, type VerifyReport, type StepStatus } from "@/lib/verify";
 
@@ -25,6 +25,15 @@ export default function VerifyPanel({ roundId, endSlot, ticketCount, defaultOpen
   const [report, setReport] = useState<VerifyReport | null>(null);
   const [running, setRunning] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+
+  // `?verify=1` opens the panel and runs the verification on load (documentation captures).
+  useEffect(() => {
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).has("verify")) {
+      const t = setTimeout(() => { setOpen(true); void run(); }, 0);
+      return () => clearTimeout(t);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function run() {
     setRunning(true);

@@ -15,6 +15,8 @@ export default function WinnerBanner({ winner, prizeSOL, roundId, onClose }: Pro
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
+    // `?quiet=1`: no toast (documentation captures).
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).has("quiet")) { onClose(); return; }
     const t = setTimeout(() => setVisible(true), 50);
     const auto = setTimeout(() => {
       setVisible(false);

@@ -17,6 +17,13 @@ import {
  */
 export default function ProgramCard({ activeNodes }: { activeNodes: number }) {
   const [expanded, setExpanded] = useState(false);
+  // `?trust=1` opens the card on load (used for documentation captures).
+  useEffect(() => {
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).has("trust")) {
+      const t = setTimeout(() => setExpanded(true), 0);
+      return () => clearTimeout(t);
+    }
+  }, []);
   const [locked, setLocked] = useState<boolean | null>(null);
   const [info, setInfo] = useState<ProgramInfo | null>(null);
   const [att, setAtt] = useState<AttestationInfo | null | undefined>(undefined);
