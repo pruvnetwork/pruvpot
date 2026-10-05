@@ -144,7 +144,7 @@ export default function VerifyPanel({ roundId, endSlot, ticketCount, defaultOpen
           <div className="rounded-lg p-3 space-y-1" style={{ background: "var(--surface-tertiary)", border: "1px solid var(--border-soft)" }}>
             <p style={{ color: "var(--text-secondary)" }}>Don&apos;t trust this page: run the same checks on your own machine, against your own RPC</p>
             <p className="break-all" style={{ color: "var(--purple-primary)" }}>
-              git clone https://github.com/pruvnetwork/pruv && cd pruv/tools/verify-round && npm i
+              git clone https://github.com/pruvnetwork/pruvnetwork && cd pruv/tools/verify-round && npm i
             </p>
             <p className="break-all" style={{ color: "var(--purple-primary)" }}>
               node verify-round.ts {roundId.toString()}{" "}--rpc &lt;your RPC URL&gt;

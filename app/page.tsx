@@ -368,13 +368,13 @@ export default function Home() {
               Verifiable allocation layer for Solana. No operator picks the winner; verify it yourself.
             </p>
             <a
-              href="https://github.com/pruvnetwork/pruv"
+              href="https://github.com/pruvnetwork/pruvnetwork"
               target="_blank"
               rel="noopener noreferrer"
               className="mt-2 inline-block text-xs"
               style={{ color: "var(--purple-primary)" }}
             >
-              github.com/pruvnetwork/pruv ↗
+              github.com/pruvnetwork/pruvnetwork ↗
             </a>
           </div>
         </div>

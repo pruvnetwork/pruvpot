@@ -29,7 +29,7 @@ export default function Footer() {
             Node Operator Portal
           </Link>
           <a
-            href="https://github.com/pruvnetwork/pruv"
+            href="https://github.com/pruvnetwork/pruvnetwork"
             target="_blank"
             rel="noopener noreferrer"
             style={{ color: "var(--text-muted)", transition: "var(--transition)" }}
