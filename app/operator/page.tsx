@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { useWallet, useConnection, useAnchorWallet } from "@solana/wallet-adapter-react";
 import { PublicKey, SystemProgram, SYSVAR_SLOT_HASHES_PUBKEY } from "@solana/web3.js";
+import { computeSeed, deriveWinnerIndex, readSeedWindow } from "@/lib/seed";
 import * as anchor from "@coral-xyz/anchor";
 import { cn } from "@/lib/utils";
 import { useToast } from "@/components/Toast";
@@ -30,30 +31,6 @@ function timeAgo(ms: number) {
   if (s < 3600) return `${Math.floor(s / 60)}m ago`;
   if (s < 86400) return `${Math.floor(s / 3600)}h ago`;
   return `${Math.floor(s / 86400)}d ago`;
-}
-
-// Replicate on-chain winner index derivation (must match programs/pruv-lottery/src/lib.rs)
-function deriveWinnerIndex(slotHash: Buffer, roundId: bigint, ticketCount: bigint): bigint {
-  const rid = Buffer.alloc(8); new DataView(rid.buffer).setBigUint64(0, roundId, true);
-  const tc  = Buffer.alloc(8); new DataView(tc.buffer).setBigUint64(0, ticketCount, true);
-  const acc = Buffer.alloc(8);
-  for (let i = 0; i < 8; i++)
-    acc[i] = slotHash[i] ^ slotHash[i+8] ^ slotHash[i+16] ^ slotHash[i+24] ^ rid[i] ^ tc[i];
-  return new DataView(acc.buffer).getBigUint64(0, true) % ticketCount;
-}
-
-function readSlotHash(data: Buffer, target: bigint): Buffer {
-  const count = Number(new DataView(data.buffer).getBigUint64(0, true));
-  let fallback: Buffer | null = null;
-  for (let i = 0; i < count; i++) {
-    const off  = 8 + i * 40;
-    const slot = new DataView(data.buffer, data.byteOffset + off).getBigUint64(0, true);
-    const hash = Buffer.from(data.subarray(off + 8, off + 40));
-    if (slot === target) return hash;
-    if (!fallback) fallback = hash;
-  }
-  if (!fallback) throw new Error("SlotHashes empty");
-  return fallback;
 }
 
 function getDrawVotePDA(roundId: bigint, node: PublicKey): [PublicKey, number] {
@@ -183,11 +160,12 @@ export default function OperatorPage() {
       const [statePDA] = getLotteryStatePDA(round.roundId);
       const [dvPDA] = getDrawVotePDA(round.roundId, publicKey!);
 
-      // Fetch SlotHash sysvar
+      // Read the 8-slot seed window from the SlotHashes sysvar and recompute the seed.
       const shInfo = await conn.getAccountInfo(SYSVAR_SLOT_HASHES_PUBKEY);
       if (!shInfo) throw new Error("SlotHashes unavailable");
-      const slotHash = readSlotHash(Buffer.from(shInfo.data), round.endSlot);
-      const winnerIndex = deriveWinnerIndex(slotHash, round.roundId, round.ticketCount);
+      const win = readSeedWindow(new Uint8Array(shInfo.data), round.endSlot);
+      const seed = computeSeed(win.hashes, round.roundId, round.ticketCount);
+      const winnerIndex = deriveWinnerIndex(seed, round.ticketCount);
 
       toast(`Derived winner index: ${winnerIndex}`, "success");
 
@@ -352,7 +330,7 @@ export default function OperatorPage() {
               <div>
                 <p className="text-sm font-semibold text-zinc-200">cast_draw_vote</p>
                 <p className="text-xs text-zinc-500 mt-0.5">
-                  Reads SlotHash sysvar → XOR-fold → derives winner index → submits on-chain
+                  Reads the 8-slot window from SlotHashes → Poseidon seed → winner index → submits on-chain
                 </p>
               </div>
               {round?.status === 0 && <p className="text-xs text-zinc-600">Waiting for round to close…</p>}

@@ -159,8 +159,9 @@
     {
       "name": "cast_draw_vote",
       "docs": [
-        "Node calls this after `end_slot` passes. Program re-derives `winner_index`",
-        "from SlotHashes; tx is rejected if node's value differs."
+        "Node calls this once the seed window `end_slot .. end_slot+8` is fully in the",
+        "SlotHashes sysvar. Program re-derives `winner_index` from the seed; the tx is",
+        "rejected if the node's value differs. The first accepted vote fixes the seed."
       ],
       "discriminator": [
         99,
@@ -967,6 +968,66 @@
       ]
     },
     {
+      "name": "reschedule_draw",
+      "docs": [
+        "Permissionless recovery. If no node voted while the seed window was still",
+        "inside the SlotHashes sysvar (~512 slots), the seed can no longer be read",
+        "on-chain. Anyone may then move the window to the current slot. Sales stay",
+        "closed (buy_ticket requires `slot < end_slot`), the ticket set is unchanged,",
+        "and the new window's hashes do not exist yet when this runs."
+      ],
+      "discriminator": [
+        4,
+        111,
+        24,
+        8,
+        105,
+        94,
+        176,
+        21
+      ],
+      "accounts": [
+        {
+          "name": "lottery_state",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "round_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "slot_hashes",
+          "address": "SysvarS1otHashes111111111111111111111111111"
+        },
+        {
+          "name": "caller",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "_round_id",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "update_config",
       "docs": [
         "Authority can rotate treasury and/or authority address, or adjust",
@@ -1215,6 +1276,19 @@
       ]
     },
     {
+      "name": "DrawRescheduled",
+      "discriminator": [
+        135,
+        195,
+        70,
+        67,
+        122,
+        60,
+        152,
+        203
+      ]
+    },
+    {
       "name": "DrawVoteCast",
       "discriminator": [
         81,
@@ -1290,6 +1364,19 @@
         57,
         109,
         178
+      ]
+    },
+    {
+      "name": "SeedCommitted",
+      "discriminator": [
+        224,
+        239,
+        12,
+        205,
+        163,
+        28,
+        63,
+        9
       ]
     },
     {
@@ -1401,6 +1488,26 @@
       "code": 6018,
       "name": "NoActiveNodes",
       "msg": "No active nodes or no votes"
+    },
+    {
+      "code": 6019,
+      "name": "SeedWindowNotComplete",
+      "msg": "Seed window not yet fully in SlotHashes"
+    },
+    {
+      "code": 6020,
+      "name": "SeedExpired",
+      "msg": "Seed window rotated out of SlotHashes; call reschedule_draw"
+    },
+    {
+      "code": 6021,
+      "name": "SeedNotExpired",
+      "msg": "Seed window is still readable; nothing to reschedule"
+    },
+    {
+      "code": 6022,
+      "name": "PoseidonFailed",
+      "msg": "Poseidon syscall failed"
     }
   ],
   "types": [
@@ -1416,6 +1523,26 @@
           {
             "name": "by",
             "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DrawRescheduled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "round_id",
+            "type": "u64"
+          },
+          {
+            "name": "old_end_slot",
+            "type": "u64"
+          },
+          {
+            "name": "new_end_slot",
+            "type": "u64"
           }
         ]
       }
@@ -1438,7 +1565,7 @@
             "type": "u64"
           },
           {
-            "name": "slot_hash_used",
+            "name": "seed",
             "type": {
               "array": [
                 "u8",
@@ -1600,9 +1727,9 @@
             "type": "u64"
           },
           {
-            "name": "slot_hash_used",
+            "name": "seed",
             "docs": [
-              "Slot hash used as entropy — fixed on first cast_draw_vote"
+              "Draw seed (Poseidon over the 8-slot window) — fixed by the first cast_draw_vote"
             ],
             "type": {
               "array": [
@@ -1820,6 +1947,53 @@
           {
             "name": "end_slot",
             "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "SeedCommitted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "round_id",
+            "type": "u64"
+          },
+          {
+            "name": "first_slot",
+            "type": "u64"
+          },
+          {
+            "name": "slot_hashes",
+            "type": {
+              "array": [
+                {
+                  "array": [
+                    "u8",
+                    32
+                  ]
+                },
+                8
+              ]
+            }
+          },
+          {
+            "name": "present_mask",
+            "type": "u8"
+          },
+          {
+            "name": "ticket_count",
+            "type": "u64"
+          },
+          {
+            "name": "seed",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
           }
         ]
       }

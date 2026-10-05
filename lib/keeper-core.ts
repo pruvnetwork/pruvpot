@@ -93,28 +93,8 @@ export function loadKeypair(keypairB64: string): Keypair {
   return Keypair.fromSecretKey(Uint8Array.from(JSON.parse(bytes.toString())));
 }
 
-export function deriveWinnerIndex(slotHash: Buffer, roundId: bigint, ticketCount: bigint): bigint {
-  const rid = Buffer.alloc(8); rid.writeBigUInt64LE(roundId);
-  const tc  = Buffer.alloc(8); tc.writeBigUInt64LE(ticketCount);
-  const acc = Buffer.alloc(8);
-  for (let i = 0; i < 8; i++)
-    acc[i] = slotHash[i] ^ slotHash[i+8] ^ slotHash[i+16] ^ slotHash[i+24] ^ rid[i] ^ tc[i];
-  return acc.readBigUInt64LE(0) % ticketCount;
-}
-
-export function readSlotHash(data: Buffer, target: bigint): Buffer {
-  const count = Number(data.readBigUInt64LE(0));
-  let fallback: Buffer | null = null;
-  for (let i = 0; i < count; i++) {
-    const off  = 8 + i * 40;
-    const slot = data.readBigUInt64LE(off);
-    const hash = data.subarray(off + 8, off + 40);
-    if (slot === target) return Buffer.from(hash);
-    if (!fallback) fallback = Buffer.from(hash);
-  }
-  if (!fallback) throw new Error("SlotHashes empty");
-  return fallback;
-}
+export { computeSeed, deriveWinnerIndex, readSeedWindow, SEED_WINDOW_SLOTS } from "./seed";
+import { computeSeed, deriveWinnerIndex, readSeedWindow, SeedWindowNotComplete } from "./seed";
 
 /**
  * Run one lifecycle pass. Throws on genuine failures; use `isTransient` on the
@@ -239,8 +219,19 @@ export async function runKeeperPass(opts: KeeperOptions): Promise<KeeperResult> 
 
     const shInfo = await withRetry(() => connection.getAccountInfo(SYSVAR_SLOT_HASHES_PUBKEY));
     if (!shInfo) throw new Error("SlotHashes unreadable");
-    const hash = readSlotHash(Buffer.from(shInfo.data), endSlot);
-    const wIdx = deriveWinnerIndex(hash, roundId, tickets);
+    let seed: Uint8Array;
+    try {
+      const win = readSeedWindow(new Uint8Array(shInfo.data), endSlot);
+      seed = computeSeed(win.hashes, roundId, tickets);
+      log(`Seed window ${endSlot}..${endSlot + 7n} present_mask=${win.presentMask.toString(2)}`);
+    } catch (e) {
+      if (e instanceof SeedWindowNotComplete) {
+        log("Seed window not complete yet; waiting");
+        return { action: "waiting", roundId: roundId.toString(), status, tickets: tickets.toString(), slotsLeft: 0, signature: null, logs };
+      }
+      throw e;
+    }
+    const wIdx = deriveWinnerIndex(seed, tickets);
     log(`Winner index: ${wIdx}`);
 
     try {

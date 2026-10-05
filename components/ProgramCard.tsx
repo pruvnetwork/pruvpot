@@ -59,7 +59,7 @@ export default function ProgramCard({ activeNodes }: { activeNodes: number }) {
             value={shortenAddress(id, 6)}
             href={`https://explorer.solana.com/address/${id}?cluster=devnet`}
           />
-          <Row label="Seed" value="SlotHashes sysvar at end_slot" />
+          <Row label="Seed" value="Poseidon over 8 slot hashes after end_slot" />
           <Row label="Winner rule" value="on-chain, re-derived per vote" />
           <Row label="Nodes" value={`${activeNodes} active on devnet`} />
           <Row label="Payout" value="program-owned PDA → wallets" />

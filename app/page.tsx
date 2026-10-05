@@ -239,7 +239,7 @@ export default function Home() {
                   ))}
                 </div>
                 <span className="text-sm text-yellow-500">
-                  Nodes are deriving winner from SlotHash…
+                  Nodes are deriving the winner from the seed window…
                 </span>
               </div>
             )}

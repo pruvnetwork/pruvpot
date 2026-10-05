@@ -4,60 +4,35 @@
  * Independent verification of a PRUVPOT round, from public chain data only.
  *
  * What a third party can check without trusting the operator or the UI:
- *   1. the slot hash the program committed for the round (LotteryState.slot_hash_used)
- *   2. that this hash is the real SlotHashes entry for `end_slot` — directly while the
- *      slot is still inside the sysvar's window (~512 slots), otherwise by the fact that
- *      `cast_draw_vote` re-derives the index from the sysvar on-chain and rejects any
- *      disagreement (the vote transaction is public)
- *   3. that `derive_winner_index(slot_hash, round_id, ticket_count)` equals the committed index
+ *   1. the draw seed the program committed for the round (LotteryState.seed)
+ *   2. that the seed really is Poseidon over the eight SlotHashes entries of the
+ *      window `end_slot .. end_slot+8` — recomputed from the live sysvar while the
+ *      window is still inside it (~512 slots), otherwise from the eight hashes the
+ *      program recorded in the `SeedCommitted` event of the first vote transaction
+ *   3. that `u64_le(seed[0..8]) mod ticket_count` equals the committed index
  *   4. that the Ticket PDA at that index belongs to the wallet recorded as the winner
+ *   5. how many staked nodes voted (liveness evidence; the result never depends on them)
  *
- * The derivation below is a line-for-line mirror of the on-chain function.
+ * The derivation (lib/seed.ts) is a byte-for-byte mirror of the on-chain function.
  */
 
-import { Connection, PublicKey, SYSVAR_SLOT_HASHES_PUBKEY } from "@solana/web3.js";
-import { AnchorProvider, Program } from "@coral-xyz/anchor";
+import { Connection, PublicKey } from "@solana/web3.js";
+import { AnchorProvider, BorshCoder, EventParser, Program, utils } from "@coral-xyz/anchor";
 import IDL from "./idl/pruv_lottery.json";
-import { getLotteryStatePDA, getTicketPDA, u64LE, fetchRegistry } from "./lottery-client";
+import { getLotteryStatePDA, getTicketPDA, u64LE, fetchRegistry, getConfigPDA } from "./lottery-client";
+import {
+  SEED_WINDOW_SLOTS,
+  SeedExpired,
+  SeedWindowNotComplete,
+  computeSeed,
+  deriveWinnerIndex,
+  fetchSeedWindow,
+  toHex,
+} from "./seed";
 
-/** Mirror of the program's `derive_winner_index` (full 64-bit arithmetic). */
-export function deriveWinnerIndex(slotHash: Uint8Array, roundId: bigint, ticketCount: bigint): bigint {
-  if (ticketCount <= 0n) throw new Error("ticketCount must be > 0");
-  const rid = u64LE(roundId);
-  const tc = u64LE(ticketCount);
-  const acc = new Uint8Array(8);
-  for (let i = 0; i < 8; i++) {
-    acc[i] = slotHash[i] ^ slotHash[i + 8] ^ slotHash[i + 16] ^ slotHash[i + 24] ^ rid[i] ^ tc[i];
-  }
-  const v = new DataView(acc.buffer).getBigUint64(0, true);
-  return v % ticketCount;
-}
+export { deriveWinnerIndex, computeSeed, toHex };
 
-/** Parse the SlotHashes sysvar: [u64 count] then `count` × ([u64 slot][32-byte hash]), newest first. */
-export function parseSlotHashes(data: Uint8Array): { slot: bigint; hash: Uint8Array }[] {
-  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
-  const count = Number(view.getBigUint64(0, true));
-  const out: { slot: bigint; hash: Uint8Array }[] = [];
-  for (let i = 0; i < count; i++) {
-    const off = 8 + i * 40;
-    if (off + 40 > data.byteLength) break;
-    out.push({ slot: view.getBigUint64(off, true), hash: data.slice(off + 8, off + 40) });
-  }
-  return out;
-}
-
-export async function fetchSlotHashFromSysvar(conn: Connection, slot: bigint): Promise<Uint8Array | null> {
-  const info = await conn.getAccountInfo(SYSVAR_SLOT_HASHES_PUBKEY, "confirmed");
-  if (!info) return null;
-  const entry = parseSlotHashes(info.data).find((e) => e.slot === slot);
-  return entry ? entry.hash : null;
-}
-
-import { utils } from "@coral-xyz/anchor";
 const bs58 = (b: Buffer) => utils.bytes.bs58.encode(b);
-
-export const toHex = (b: Uint8Array | number[]) =>
-  Array.from(b).map((x) => x.toString(16).padStart(2, "0")).join("");
 
 export type StepStatus = "ok" | "fail" | "pending" | "info";
 export interface VerifyStep {
@@ -80,6 +55,51 @@ const DUMMY_WALLET = {
 };
 
 const explorer = (addr: string) => `https://explorer.solana.com/address/${addr}?cluster=devnet`;
+const explorerTx = (sig: string) => `https://explorer.solana.com/tx/${sig}?cluster=devnet`;
+
+interface SeedCommittedEvent {
+  firstSlot: bigint;
+  slotHashes: Uint8Array[];
+  presentMask: number;
+  ticketCount: bigint;
+  seed: Uint8Array;
+  signature: string;
+}
+
+/** Find the `SeedCommitted` event in the round account's transaction history (first vote). */
+async function findSeedCommitted(
+  conn: Connection,
+  programId: PublicKey,
+  statePda: PublicKey,
+): Promise<SeedCommittedEvent | null> {
+  const sigs = await conn.getSignaturesForAddress(statePda, { limit: 60 }, "confirmed");
+  const parser = new EventParser(programId, new BorshCoder(IDL as never));
+  // Oldest first: the committing vote is early in the round's history.
+  for (const s of sigs.reverse()) {
+    if (s.err) continue;
+    const tx = await conn.getTransaction(s.signature, { commitment: "confirmed", maxSupportedTransactionVersion: 0 });
+    const logs = tx?.meta?.logMessages;
+    if (!logs) continue;
+    for (const ev of parser.parseLogs(logs)) {
+      if (ev.name !== "SeedCommitted" && ev.name !== "seedCommitted") continue;
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const d: any = ev.data;
+      const hashes = (d.slotHashes ?? d.slot_hashes) as number[][];
+      return {
+        firstSlot: BigInt((d.firstSlot ?? d.first_slot).toString()),
+        slotHashes: hashes.map((h) => Uint8Array.from(h)),
+        presentMask: Number(d.presentMask ?? d.present_mask),
+        ticketCount: BigInt((d.ticketCount ?? d.ticket_count).toString()),
+        seed: Uint8Array.from(d.seed as number[]),
+        signature: s.signature,
+      };
+    }
+  }
+  return null;
+}
+
+const windowLabel = (first: bigint) =>
+  `${first.toLocaleString()} … ${(first + BigInt(SEED_WINDOW_SLOTS - 1)).toLocaleString()}`;
 
 export async function verifyRound(conn: Connection, roundId: bigint): Promise<VerifyReport> {
   const provider = new AnchorProvider(conn, DUMMY_WALLET as never, { commitment: "confirmed" });
@@ -93,50 +113,73 @@ export async function verifyRound(conn: Connection, roundId: bigint): Promise<Ve
   const ticketCount = BigInt(st.ticketCount.toString());
   const endSlot = BigInt(st.endSlot.toString());
   const committedIdx = BigInt(st.committedWinnerIndex.toString());
-  const storedHash = Uint8Array.from(st.slotHashUsed as number[]);
-  const hashIsZero = storedHash.every((b) => b === 0);
+  const storedSeed = Uint8Array.from(st.seed as number[]);
+  const seedIsZero = storedSeed.every((b) => b === 0);
   const winner: PublicKey = st.winner;
   const steps: VerifyStep[] = [];
 
-  // 1. committed hash
-  if (status === 0 || hashIsZero) {
+  // 1. committed seed
+  if (status === 0 || seedIsZero) {
     steps.push({
-      title: "Slot hash committed on-chain",
+      title: "Draw seed committed on-chain",
       status: "pending",
-      detail: `Round is still open until slot ${endSlot.toLocaleString()}; the hash is committed by the first node vote after that slot.`,
+      detail: `Round is open until slot ${endSlot.toLocaleString()}; the seed is fixed by the first node vote once slots ${windowLabel(endSlot)} exist.`,
       link: { label: "round account", href: explorer(statePda.toBase58()) },
     });
     return { roundId, status, steps, verdict: "pending" };
   }
   steps.push({
-    title: "Slot hash committed on-chain",
+    title: "Draw seed committed on-chain",
     status: "ok",
-    detail: toHex(storedHash),
+    detail: toHex(storedSeed),
     link: { label: "round account", href: explorer(statePda.toBase58()) },
   });
 
-  // 2. sysvar cross-check
-  let live: Uint8Array | null = null;
+  // 2. recompute the seed from the eight slot hashes
+  let seedChecked = false;
   try {
-    live = await fetchSlotHashFromSysvar(conn, endSlot);
-  } catch {
-    live = null;
-  }
-  if (live) {
-    const same = toHex(live) === toHex(storedHash);
+    const win = await fetchSeedWindow(conn, endSlot, "confirmed");
+    const recomputed = computeSeed(win.hashes, roundId, ticketCount);
+    const same = toHex(recomputed) === toHex(storedSeed);
     steps.push({
-      title: `Matches the SlotHashes sysvar entry for slot ${endSlot.toLocaleString()}`,
+      title: `Seed recomputed from the live SlotHashes window ${windowLabel(endSlot)}`,
       status: same ? "ok" : "fail",
-      detail: same ? "Read live from the sysvar just now." : `Sysvar has ${toHex(live)}.`,
+      detail: same
+        ? `Poseidon over the 8 hashes read from the sysvar just now (${win.presentMask.toString(2).split("1").length - 1}/8 slots produced), round id and ticket count.`
+        : `Sysvar gives ${toHex(recomputed)}.`,
     });
-  } else {
-    steps.push({
-      title: `Sysvar entry for slot ${endSlot.toLocaleString()} no longer available`,
-      status: "info",
-      detail:
-        "SlotHashes keeps ~512 recent slots. For older rounds the check happened on-chain: cast_draw_vote re-derives the index from the sysvar and rejects a vote that disagrees, so the committed hash is the one Solana produced. The vote transactions are listed on the round account.",
-      link: { label: "transactions", href: explorer(statePda.toBase58()) },
-    });
+    seedChecked = true;
+  } catch (e) {
+    if (!(e instanceof SeedExpired) && !(e instanceof SeedWindowNotComplete)) {
+      steps.push({ title: "SlotHashes sysvar", status: "info", detail: `Could not read the sysvar (RPC): ${String(e)}` });
+    }
+  }
+  if (!seedChecked) {
+    try {
+      const ev = await findSeedCommitted(conn, program.programId, statePda);
+      if (ev) {
+        const recomputed = computeSeed(ev.slotHashes, roundId, ticketCount);
+        const same = toHex(recomputed) === toHex(storedSeed) && ev.firstSlot === endSlot;
+        steps.push({
+          title: `Seed recomputed from the 8 slot hashes recorded in the vote transaction (window ${windowLabel(ev.firstSlot)})`,
+          status: same ? "ok" : "fail",
+          detail: same
+            ? "The sysvar has rotated past this window; the program wrote the inputs it read into the SeedCommitted event when it fixed the seed."
+            : `Recomputed ${toHex(recomputed)} from the logged hashes.`,
+          link: { label: "vote transaction", href: explorerTx(ev.signature) },
+        });
+      } else {
+        steps.push({
+          title: `Window ${windowLabel(endSlot)} no longer in the sysvar and no SeedCommitted log found`,
+          status: "info",
+          detail:
+            "The RPC did not return the committing vote transaction. The program itself recomputed the seed from the sysvar at vote time and rejects disagreeing votes; use an archive RPC to re-check the logged inputs.",
+          link: { label: "transactions", href: explorer(statePda.toBase58()) },
+        });
+      }
+    } catch (e) {
+      steps.push({ title: "Vote transaction log", status: "info", detail: `Could not read transaction history (RPC): ${String(e)}` });
+    }
   }
 
   // 3. recompute index
@@ -144,10 +187,10 @@ export async function verifyRound(conn: Connection, roundId: bigint): Promise<Ve
     steps.push({ title: "Winner index recomputed", status: "info", detail: "No tickets were sold in this round." });
     return { roundId, status, steps, verdict: "verified" };
   }
-  const derived = deriveWinnerIndex(storedHash, roundId, ticketCount);
+  const derived = deriveWinnerIndex(storedSeed, ticketCount);
   const idxOk = derived === committedIdx;
   steps.push({
-    title: "Winner index recomputed from (slot hash, round id, ticket count)",
+    title: "Winner index = u64_le(seed[0..8]) mod ticket count",
     status: idxOk ? "ok" : "fail",
     detail: `derived #${derived} · committed #${committedIdx} · ${ticketCount} tickets`,
   });
@@ -179,7 +222,7 @@ export async function verifyRound(conn: Connection, roundId: bigint): Promise<Ve
 
   // 5. votes vs. the staked registry (liveness evidence; correctness never depends on nodes)
   try {
-    const [registry, voteAccs] = await Promise.all([
+    const [registry, voteAccs, cfg] = await Promise.all([
       fetchRegistry(conn),
       conn.getProgramAccounts(program.programId, {
         filters: [
@@ -188,9 +231,12 @@ export async function verifyRound(conn: Connection, roundId: bigint): Promise<Ve
         ],
         dataSlice: { offset: 0, length: 0 },
       }),
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (program.account as any).lotteryConfig.fetch(getConfigPDA()[0]).catch(() => null),
     ]);
     const active = registry?.active ?? 0;
-    const needed = Math.ceil((active * 6667) / 10_000);
+    const thresholdBps = cfg ? Number(cfg.thresholdBps.toString()) : 6666;
+    const needed = Math.ceil((active * thresholdBps) / 10_000);
     const votes = voteAccs.length;
     steps.push({
       title: `Votes from staked nodes: ${votes} of ${active} registered (≥ ${needed} needed)`,

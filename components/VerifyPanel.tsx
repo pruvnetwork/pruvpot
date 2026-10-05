@@ -66,16 +66,16 @@ export default function VerifyPanel({ roundId, endSlot, ticketCount, defaultOpen
         <div className="mt-4 space-y-3 text-xs font-mono">
           <div className="rounded-lg p-3 space-y-1" style={{ background: "var(--surface-tertiary)", border: "1px solid var(--border-soft)" }}>
             <p style={{ color: "var(--text-secondary)" }}>Winner rule (identical on-chain and here):</p>
-            <p style={{ color: "var(--purple-primary)" }}>acc[i] = slotHash[i] ^ slotHash[i+8] ^ slotHash[i+16] ^ slotHash[i+24]</p>
-            <p style={{ color: "var(--purple-primary)" }}>acc[i] ^= roundId_LE[i] ^ ticketCount_LE[i]</p>
-            <p style={{ color: "var(--purple-primary)" }}>winner = u64_LE(acc) % ticketCount</p>
+            <p style={{ color: "var(--purple-primary)" }}>h[i] = SlotHashes[end_slot + i], i = 0..8 (zero if the slot was skipped)</p>
+            <p style={{ color: "var(--purple-primary)" }}>seed = Poseidon_BN254(h[0..8] with byte 31 cleared, roundId, ticketCount)</p>
+            <p style={{ color: "var(--purple-primary)" }}>winner = u64_LE(seed[0..8]) % ticketCount</p>
           </div>
 
           <div className="rounded-lg p-3 space-y-1" style={{ background: "var(--surface-secondary)", border: "1px solid var(--border-default)" }}>
             <p style={{ color: "var(--text-secondary)" }}>Round #{roundId.toString()} inputs</p>
             {endSlot !== undefined && <p style={{ color: "var(--text-muted)" }}>End slot: {endSlot.toLocaleString()}</p>}
             {ticketCount !== undefined && <p style={{ color: "var(--text-muted)" }}>Ticket count: {ticketCount.toString()}</p>}
-            <p style={{ color: "var(--text-muted)" }}>Slot hash: read from the round account / SlotHashes sysvar</p>
+            <p style={{ color: "var(--text-muted)" }}>Seed: stored in the round account; inputs read from the SlotHashes sysvar or the vote transaction log</p>
           </div>
 
           <button
@@ -142,10 +142,11 @@ export default function VerifyPanel({ roundId, endSlot, ticketCount, defaultOpen
           )}
 
           <p className="leading-relaxed" style={{ color: "var(--text-muted)" }}>
-            The seed is the Solana slot hash of a slot fixed when the round opened. The program reads it from the
-            SlotHashes sysvar and rejects any node vote that disagrees, so no operator picks the number. It is not
-            VRF-grade randomness: the leader of that slot has marginal influence over its hash. Finalization needs
-            ≥ 2/3 of the registered nodes to agree.
+            The seed is a Poseidon hash of the eight Solana slot hashes that follow the round&apos;s end slot, fixed when
+            the round opened and produced only after ticket sales closed. The program reads them from the SlotHashes
+            sysvar itself and rejects any node vote that disagrees, so no operator, node or buyer picks the number.
+            It is not VRF-grade randomness: the leader of the last block in the window can choose among the few block
+            variants it can build in one slot. Finalization needs ≥ 2/3 of the registered nodes to agree.
           </p>
         </div>
       )}

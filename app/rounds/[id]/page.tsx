@@ -149,37 +149,38 @@ export default function RoundPage({ params }: { params: Promise<{ id: string }> 
         </div>
       ) : null}
 
-      {/* SlotHash Proof */}
+      {/* Draw seed */}
       {round.votes.length > 0 && (
         <div className="border border-zinc-800 bg-zinc-900/50 rounded-xl p-5 space-y-4">
           <div className="flex items-center gap-2">
             <span className="text-base">🔐</span>
-            <h2 className="text-sm font-semibold text-zinc-200">SlotHash Proof</h2>
+            <h2 className="text-sm font-semibold text-zinc-200">Draw seed</h2>
             <span className="text-xs bg-violet-900/50 text-violet-400 border border-violet-800 px-2 py-0.5 rounded-full ml-auto">
               on-chain data
             </span>
           </div>
           <div className="space-y-3">
             <ProofRow
-              label="SlotHash (raw)"
-              value={round.votes[0].slotHash}
-              onCopy={() => copy(round.votes[0].slotHash, "hash")}
+              label="Seed (Poseidon, hex)"
+              value={round.votes[0].seed}
+              onCopy={() => copy(round.votes[0].seed, "hash")}
               copied={copied === "hash"}
             />
             {round.winnerIndex !== null && (
               <ProofRow
-                label="XOR → Winner Index"
+                label="Winner index"
                 value={`${round.winnerIndex.toString()} of ${round.ticketCount.toString()}`}
               />
             )}
             <div className="text-xs text-zinc-600 bg-zinc-800/50 rounded-lg p-3 font-mono leading-relaxed">
               <span className="text-zinc-500">formula: </span>
-              <span className="text-violet-400">xorFold(slotHash[32→8])</span>
-              <span className="text-zinc-500"> XOR </span>
-              <span className="text-sky-400">roundId_LE</span>
-              <span className="text-zinc-500"> XOR </span>
-              <span className="text-emerald-400">ticketCount_LE</span>
-              <span className="text-zinc-500"> % ticketCount</span>
+              <span className="text-violet-400">seed = Poseidon(slotHash[end_slot..end_slot+8]</span>
+              <span className="text-zinc-500">, </span>
+              <span className="text-sky-400">roundId</span>
+              <span className="text-zinc-500">, </span>
+              <span className="text-emerald-400">ticketCount</span>
+              <span className="text-violet-400">)</span>
+              <span className="text-zinc-500"> · winner = u64_LE(seed[0..8]) % ticketCount</span>
             </div>
           </div>
         </div>

@@ -165,8 +165,9 @@ export type PruvLottery = {
     {
       "name": "castDrawVote",
       "docs": [
-        "Node calls this after `end_slot` passes. Program re-derives `winner_index`",
-        "from SlotHashes; tx is rejected if node's value differs."
+        "Node calls this once the seed window `end_slot .. end_slot+8` is fully in the",
+        "SlotHashes sysvar. Program re-derives `winner_index` from the seed; the tx is",
+        "rejected if the node's value differs. The first accepted vote fixes the seed."
       ],
       "discriminator": [
         99,
@@ -973,6 +974,66 @@ export type PruvLottery = {
       ]
     },
     {
+      "name": "rescheduleDraw",
+      "docs": [
+        "Permissionless recovery. If no node voted while the seed window was still",
+        "inside the SlotHashes sysvar (~512 slots), the seed can no longer be read",
+        "on-chain. Anyone may then move the window to the current slot. Sales stay",
+        "closed (buy_ticket requires `slot < end_slot`), the ticket set is unchanged,",
+        "and the new window's hashes do not exist yet when this runs."
+      ],
+      "discriminator": [
+        4,
+        111,
+        24,
+        8,
+        105,
+        94,
+        176,
+        21
+      ],
+      "accounts": [
+        {
+          "name": "lotteryState",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "roundId"
+              }
+            ]
+          }
+        },
+        {
+          "name": "slotHashes",
+          "address": "SysvarS1otHashes111111111111111111111111111"
+        },
+        {
+          "name": "caller",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "roundId",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "updateConfig",
       "docs": [
         "Authority can rotate treasury and/or authority address, or adjust",
@@ -1221,6 +1282,19 @@ export type PruvLottery = {
       ]
     },
     {
+      "name": "drawRescheduled",
+      "discriminator": [
+        135,
+        195,
+        70,
+        67,
+        122,
+        60,
+        152,
+        203
+      ]
+    },
+    {
       "name": "drawVoteCast",
       "discriminator": [
         81,
@@ -1296,6 +1370,19 @@ export type PruvLottery = {
         57,
         109,
         178
+      ]
+    },
+    {
+      "name": "seedCommitted",
+      "discriminator": [
+        224,
+        239,
+        12,
+        205,
+        163,
+        28,
+        63,
+        9
       ]
     },
     {
@@ -1407,6 +1494,26 @@ export type PruvLottery = {
       "code": 6018,
       "name": "noActiveNodes",
       "msg": "No active nodes or no votes"
+    },
+    {
+      "code": 6019,
+      "name": "seedWindowNotComplete",
+      "msg": "Seed window not yet fully in SlotHashes"
+    },
+    {
+      "code": 6020,
+      "name": "seedExpired",
+      "msg": "Seed window rotated out of SlotHashes; call reschedule_draw"
+    },
+    {
+      "code": 6021,
+      "name": "seedNotExpired",
+      "msg": "Seed window is still readable; nothing to reschedule"
+    },
+    {
+      "code": 6022,
+      "name": "poseidonFailed",
+      "msg": "Poseidon syscall failed"
     }
   ],
   "types": [
@@ -1422,6 +1529,26 @@ export type PruvLottery = {
           {
             "name": "by",
             "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "drawRescheduled",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "roundId",
+            "type": "u64"
+          },
+          {
+            "name": "oldEndSlot",
+            "type": "u64"
+          },
+          {
+            "name": "newEndSlot",
+            "type": "u64"
           }
         ]
       }
@@ -1444,7 +1571,7 @@ export type PruvLottery = {
             "type": "u64"
           },
           {
-            "name": "slotHashUsed",
+            "name": "seed",
             "type": {
               "array": [
                 "u8",
@@ -1606,9 +1733,9 @@ export type PruvLottery = {
             "type": "u64"
           },
           {
-            "name": "slotHashUsed",
+            "name": "seed",
             "docs": [
-              "Slot hash used as entropy — fixed on first cast_draw_vote"
+              "Draw seed (Poseidon over the 8-slot window) — fixed by the first cast_draw_vote"
             ],
             "type": {
               "array": [
@@ -1826,6 +1953,53 @@ export type PruvLottery = {
           {
             "name": "endSlot",
             "type": "u64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "seedCommitted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "roundId",
+            "type": "u64"
+          },
+          {
+            "name": "firstSlot",
+            "type": "u64"
+          },
+          {
+            "name": "slotHashes",
+            "type": {
+              "array": [
+                {
+                  "array": [
+                    "u8",
+                    32
+                  ]
+                },
+                8
+              ]
+            }
+          },
+          {
+            "name": "presentMask",
+            "type": "u8"
+          },
+          {
+            "name": "ticketCount",
+            "type": "u64"
+          },
+          {
+            "name": "seed",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
           }
         ]
       }

@@ -92,7 +92,7 @@ export default function LiveChat({
   useEffect(() => {
     if (status === prevStatus.current) return;
     if (status === 1 && prevStatus.current === 0) {
-      push({ type: "system-round", text: `🔐 Round #${roundId.toString()} closed — nodes deriving winner from SlotHash…` });
+      push({ type: "system-round", text: `🔐 Round #${roundId.toString()} closed — nodes deriving the winner from the seed window…` });
     }
     prevStatus.current = status;
   }, [status, roundId, push]);

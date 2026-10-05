@@ -19,7 +19,7 @@ export default function LuckShareCard({ activeTickets, totalTickets, winRate, to
 
   const shareText = activeTickets > 0
     ? `🎟️ I'm in! ${activeTickets} ticket${activeTickets > 1 ? "s" : ""} in PRUVPOT Round #${roundId} — ${winPct}% win chance. Provably fair lottery on Solana powered by PRUV Protocol. Join me 👇`
-    : `🎰 Playing PRUVPOT — provably fair lottery on Solana. ${totalTickets} tickets bought, ${winRate}% win rate. Winner picked from on-chain SlotHash, no trust needed.`;
+    : `🎰 Playing PRUVPOT — provably fair lottery on Solana. ${totalTickets} tickets bought, ${winRate}% win rate. Winner derived on-chain from Solana slot hashes, no operator picks it.`;
 
   function copyStats() {
     const text = `My PRUVPOT stats:\n• Tickets: ${totalTickets}\n• Win rate: ${winRate}%\n• Total won: ${totalWonSOL.toFixed(3)} SOL\n• pruvpot.vercel.app`;

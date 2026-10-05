@@ -26,7 +26,7 @@ export interface RoundTicket {
 export interface RoundVote {
   node: string;
   winnerIndex: bigint;
-  slotHash: string; // hex
+  seed: string; // hex, Poseidon seed the vote was derived from
   claimed: boolean;
 }
 
@@ -132,13 +132,13 @@ export function useRoundDetail(roundId: number): RoundDetailState {
           // program.account.*.fetch which camel-cases them. Accept both.
           const wi = BigInt((decoded.winnerIndex ?? decoded.winner_index).toString());
           if (winnerIndex === null) winnerIndex = wi;
-          const slotHashBytes: number[] = decoded.slotHashUsed ?? decoded.slot_hash_used;
-          const slotHash = Buffer.from(slotHashBytes).toString("hex");
+          const seedBytes: number[] = decoded.seed;
+          const seed = Buffer.from(seedBytes).toString("hex");
           const nodeKey: PublicKey = decoded.nodePubkey ?? decoded.node_pubkey;
           return {
             node: nodeKey.toBase58(),
             winnerIndex: wi,
-            slotHash,
+            seed,
             claimed: Boolean(decoded.claimed),
           };
         });
