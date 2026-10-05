@@ -27,7 +27,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "PRUVPOT — Provably Fair on Solana",
-  description: "Verifiable lottery powered by PRUV Protocol. No trust required.",
+  description: "Verifiable lottery powered by PRUV Protocol. No operator picks the winner; verify every round yourself.",
 };
 
 export default function RootLayout({

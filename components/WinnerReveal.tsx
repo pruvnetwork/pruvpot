@@ -75,7 +75,7 @@ export default function WinnerReveal({ winner, prizeSOL, roundId }: Props) {
 
             <div className="flex items-center justify-center gap-2 flex-wrap">
               <ShareButton
-                text={`🏆 Just won ${prizeSOL.toFixed(3)} SOL on PRUVPOT — provably fair lottery on Solana. Round #${roundId.toString()} · No trust required, winner derived on-chain from Solana slot hashes.`}
+                text={`🏆 Just won ${prizeSOL.toFixed(3)} SOL on PRUVPOT — provably fair lottery on Solana. Round #${roundId.toString()} · No operator picks the winner: it is derived on-chain from Solana slot hashes.`}
                 label="Share your win"
               />
               <ShareButton

@@ -71,7 +71,7 @@ export default function WinnerBanner({ winner, prizeSOL, roundId, onClose }: Pro
           {/* Actions */}
           <div className="flex items-center gap-2 shrink-0">
             <ShareButton
-              text={`🏆 PRUVPOT Round #${roundId.toString()} just closed — ${prizeSOL.toFixed(3)} SOL won by ${winner}. Provably fair lottery on Solana. No trust required.`}
+              text={`🏆 PRUVPOT Round #${roundId.toString()} just closed — ${prizeSOL.toFixed(3)} SOL won by ${winner}. Provably fair lottery on Solana. No operator picks the winner.`}
               label="Share"
             />
             <button

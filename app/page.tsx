@@ -289,7 +289,7 @@ export default function Home() {
                   More players = bigger jackpot
                 </p>
                 <ShareButton
-                  text={`🎰 PRUVPOT Round #${round.roundId.toString()} is live — ${(Number(poolLamports) / 1e9).toFixed(3)} SOL prize pool. Provably fair lottery on Solana. No trust required.`}
+                  text={`🎰 PRUVPOT Round #${round.roundId.toString()} is live — ${(Number(poolLamports) / 1e9).toFixed(3)} SOL prize pool. Provably fair lottery on Solana. No operator picks the winner.`}
                   label="Invite friends"
                   variant="full"
                 />
@@ -365,7 +365,7 @@ export default function Home() {
             <p className="text-xs mb-1" style={{ color: "var(--text-muted)" }}>Powered by</p>
             <p className="text-sm font-bold" style={{ color: "var(--purple-primary)" }}>PRUV Protocol</p>
             <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--text-muted)" }}>
-              Verifiable allocation layer for Solana. No trust required.
+              Verifiable allocation layer for Solana. No operator picks the winner; verify it yourself.
             </p>
             <a
               href="https://github.com/pruvnetwork/pruv"
