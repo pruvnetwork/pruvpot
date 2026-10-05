@@ -141,6 +141,22 @@ export default function VerifyPanel({ roundId, endSlot, ticketCount, defaultOpen
             </div>
           )}
 
+          <div className="rounded-lg p-3 space-y-1" style={{ background: "var(--surface-tertiary)", border: "1px solid var(--border-soft)" }}>
+            <p style={{ color: "var(--text-secondary)" }}>Don&apos;t trust this page: run the same checks on your own machine, against your own RPC</p>
+            <p className="break-all" style={{ color: "var(--purple-primary)" }}>
+              git clone https://github.com/pruvnetwork/pruv && cd pruv/tools/verify-round && npm i
+            </p>
+            <p className="break-all" style={{ color: "var(--purple-primary)" }}>
+              node verify-round.ts {roundId.toString()} --rpc &lt;your RPC URL&gt;
+            </p>
+            <p style={{ color: "var(--text-muted)" }}>
+              One file, no PRUV library: it decodes the accounts by hand and prints every input. Byte-level rule:{" "}
+              <a href="https://github.com/pruvnetwork/pruv/blob/main/docs/draw-spec.md" target="_blank" rel="noreferrer" className="underline">
+                docs/draw-spec.md
+              </a>
+            </p>
+          </div>
+
           <p className="leading-relaxed" style={{ color: "var(--text-muted)" }}>
             The seed is a Poseidon hash of the eight Solana slot hashes that follow the round&apos;s end slot, fixed when
             the round opened and produced only after ticket sales closed. The program reads them from the SlotHashes
