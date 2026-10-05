@@ -5,6 +5,10 @@ import { PROGRAM_ID, fetchConfigLocked } from "@/lib/lottery-client";
 import { fetchProgramInfo, type ProgramInfo } from "@/lib/program-info";
 import { getConnection } from "@/lib/rpc";
 import { shortenAddress } from "@/lib/utils";
+import {
+  fetchAttestation, fetchAttestationConfig,
+  type AttestationInfo, type AttestationConfigInfo,
+} from "@/lib/attestation";
 
 /**
  * Honest trust card: what is verifiable about this deployment today, and what
@@ -15,17 +19,48 @@ export default function ProgramCard({ activeNodes }: { activeNodes: number }) {
   const [expanded, setExpanded] = useState(false);
   const [locked, setLocked] = useState<boolean | null>(null);
   const [info, setInfo] = useState<ProgramInfo | null>(null);
+  const [att, setAtt] = useState<AttestationInfo | null | undefined>(undefined);
+  const [attCfg, setAttCfg] = useState<AttestationConfigInfo | null>(null);
+  const [nowSec, setNowSec] = useState<number>(0);
   const id = PROGRAM_ID.toBase58();
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       const conn = getConnection();
-      const [l, i] = await Promise.all([fetchConfigLocked(conn).catch(() => null), fetchProgramInfo(conn)]);
-      if (!cancelled) { setLocked(l); setInfo(i); }
+      // Small reads first; the ProgramData read (hundreds of KB) last and retried,
+      // so a rate-limited public RPC does not blank the whole card.
+      const [l, a, c] = await Promise.all([
+        fetchConfigLocked(conn).catch(() => null),
+        fetchAttestation(conn, PROGRAM_ID).catch(() => null),
+        fetchAttestationConfig(conn).catch(() => null),
+      ]);
+      if (!cancelled) { setLocked(l); setAtt(a); setAttCfg(c); setNowSec(Date.now() / 1000); }
+      const i = await fetchProgramInfo(conn);
+      if (!cancelled) setInfo(i);
     })();
     return () => { cancelled = true; };
   }, []);
+
+  const attExpired = att && nowSec > 0 ? att.expiresAt < nowSec : false;
+  const liveHash = info?.bytecodeSha256 ?? null;
+  const hashMatches = att && liveHash ? att.programHash === liveHash : null;
+  const attLabel =
+    att === undefined ? "reading…"
+    : att === null ? "none for this program"
+    : !att.valid ? "invalidated"
+    : attExpired ? `expired (slot ${att.slot.toLocaleString()})`
+    : `by ${att.signerCount} PRUV node${att.signerCount === 1 ? "" : "s"} · slot ${att.slot.toLocaleString()}`;
+  const hashLabel =
+    att == null ? "—"
+    : liveHash === null ? `${att.programHash.slice(0, 10)}… (live hash unavailable)`
+    : hashMatches ? `${att.programHash.slice(0, 10)}… = running bytecode ✓`
+    : `${att.programHash.slice(0, 10)}… ≠ running ${liveHash.slice(0, 10)}…`;
+  const zkLabel =
+    att == null ? "—"
+    : attCfg?.verifierProgram
+      ? `verified on-chain by ${shortenAddress(attCfg.verifierProgram, 4)} (Halo2, no Groth16)`
+      : "proof hash recorded; on-chain verification pending verifier deployment";
 
   const upgradeLabel =
     info?.upgradeAuthority === undefined ? "reading…"
@@ -69,12 +104,28 @@ export default function ProgramCard({ activeNodes }: { activeNodes: number }) {
             value={upgradeLabel}
             href={info?.upgradeAuthority ? `https://explorer.solana.com/address/${info.upgradeAuthority}?cluster=devnet` : undefined}
           />
-          <Row label="ZK attestation" value="not live yet" />
+          <div className="pt-2 mt-2" style={{ borderTop: "1px solid var(--border-soft)" }}>
+            <p className="mb-2" style={{ color: "var(--text-secondary)" }}>PRUV attestation of this program</p>
+            <Row
+              label="Attestation"
+              value={attLabel}
+              href={att ? `https://explorer.solana.com/address/${att.address}?cluster=devnet` : undefined}
+            />
+            <Row label="Attested hash" value={hashLabel} />
+            <Row
+              label="ZK proof"
+              value={zkLabel}
+              href={attCfg?.verifierProgram ? `https://explorer.solana.com/address/${attCfg.verifierProgram}?cluster=devnet` : undefined}
+            />
+          </div>
           <p className="mt-3 text-xs leading-relaxed" style={{ color: "var(--text-muted)" }}>
             Everything above can be checked from public chain data (see “Verify this round yourself”).
             The operator cannot choose a winner; what it can still do is listed honestly above: change
             config until it is locked, and upgrade the program while an upgrade authority exists.
-            PRUV’s zero-knowledge allocation proofs are not part of this devnet deployment.
+            The attestation is written by a PRUV node after it fetched this program’s bytecode, hashed it
+            (compare with the hash this page computes from the chain) and produced a Halo2 proof of the
+            commitment; when the on-chain verifier is configured, the attestation program only accepts an
+            attestation whose proof was verified on Solana first.
           </p>
         </div>
       )}
