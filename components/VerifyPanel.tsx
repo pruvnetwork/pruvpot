@@ -151,7 +151,7 @@ export default function VerifyPanel({ roundId, endSlot, ticketCount, defaultOpen
             </p>
             <p style={{ color: "var(--text-muted)" }}>
               One file, no PRUV library: it decodes the accounts by hand and prints every input. Byte-level rule:{" "}
-              <a href="https://github.com/pruvnetwork/pruv/blob/main/docs/draw-spec.md" target="_blank" rel="noreferrer" className="underline">
+              <a href="https://github.com/pruvnetwork/pruvnetwork/blob/main/docs/draw-spec.md" target="_blank" rel="noreferrer" className="underline">
                 docs/draw-spec.md
               </a>
             </p>
