@@ -18,7 +18,7 @@
 import { Connection, PublicKey, SYSVAR_SLOT_HASHES_PUBKEY } from "@solana/web3.js";
 import { AnchorProvider, Program } from "@coral-xyz/anchor";
 import IDL from "./idl/pruv_lottery.json";
-import { getLotteryStatePDA, getTicketPDA, u64LE } from "./lottery-client";
+import { getLotteryStatePDA, getTicketPDA, u64LE, fetchRegistry } from "./lottery-client";
 
 /** Mirror of the program's `derive_winner_index` (full 64-bit arithmetic). */
 export function deriveWinnerIndex(slotHash: Uint8Array, roundId: bigint, ticketCount: bigint): bigint {
@@ -52,6 +52,9 @@ export async function fetchSlotHashFromSysvar(conn: Connection, slot: bigint): P
   const entry = parseSlotHashes(info.data).find((e) => e.slot === slot);
   return entry ? entry.hash : null;
 }
+
+import { utils } from "@coral-xyz/anchor";
+const bs58 = (b: Buffer) => utils.bytes.bs58.encode(b);
 
 export const toHex = (b: Uint8Array | number[]) =>
   Array.from(b).map((x) => x.toString(16).padStart(2, "0")).join("");
@@ -172,6 +175,30 @@ export async function verifyRound(conn: Connection, roundId: bigint): Promise<Ve
       status: "pending",
       detail: "finalize_draw has not been called yet; the winner wallet is written at finalization.",
     });
+  }
+
+  // 5. votes vs. the staked registry (liveness evidence; correctness never depends on nodes)
+  try {
+    const [registry, voteAccs] = await Promise.all([
+      fetchRegistry(conn),
+      conn.getProgramAccounts(program.programId, {
+        filters: [
+          { memcmp: { offset: 8, bytes: bs58(u64LE(roundId)) } },
+          { dataSize: 8 + 8 + 32 + 8 + 32 + 1 + 1 }, // DrawVote
+        ],
+        dataSlice: { offset: 0, length: 0 },
+      }),
+    ]);
+    const active = registry?.active ?? 0;
+    const needed = Math.ceil((active * 6667) / 10_000);
+    const votes = voteAccs.length;
+    steps.push({
+      title: `Votes from staked nodes: ${votes} of ${active} registered (≥ ${needed} needed)`,
+      status: votes >= needed && votes > 0 ? "ok" : status === 2 ? "fail" : "pending",
+      detail: "Each vote was re-derived and checked by the program; nodes can only delay a round, not change its result.",
+    });
+  } catch {
+    steps.push({ title: "Votes from staked nodes", status: "info", detail: "Could not read vote accounts (RPC)." });
   }
 
   const verdict = steps.some((s) => s.status === "fail")

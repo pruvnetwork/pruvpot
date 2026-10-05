@@ -13,8 +13,9 @@ import { getLotteryProgram, PROGRAM_ID, getConfigPDA, getLotteryStatePDA, u64LE 
 import IDL from "@/lib/idl/pruv_lottery.json";
 
 import { getConnection } from "@/lib/rpc";
+import { fetchNodeRecord, registerNode, exitNode, MIN_NODE_STAKE_LAMPORTS, type NodeRecordInfo } from "@/lib/lottery-client";
+import { useNodeRegistry } from "@/hooks/useNodeRegistry";
 import { DEFAULT_NODE_BPS, DEFAULT_TREASURY_BPS } from "@/lib/shares";
-const OPERATOR = process.env.NEXT_PUBLIC_OPERATOR ?? "9XvGmv2HCcr9BDVEwnj2oN9ZMrgEDATJDKk943tMUnxq";
 
 function hasWinnerShare(e: unknown): e is { winnerShare: bigint | string | number } {
   return typeof e === "object" && e !== null && "winnerShare" in e && (e as { winnerShare?: unknown }).winnerShare != null;
@@ -73,7 +74,7 @@ function AuthGate({ onAuth }: { onAuth: () => void }) {
   const { publicKey } = useWallet();
 
   useEffect(() => {
-    if (publicKey?.toBase58() === OPERATOR) onAuth();
+    if (publicKey) onAuth();
   }, [publicKey, onAuth]);
 
   return (
@@ -84,22 +85,9 @@ function AuthGate({ onAuth }: { onAuth: () => void }) {
           <h1 className="text-xl font-bold text-white">Node Operator Portal</h1>
           <p className="text-zinc-500 text-sm mt-1">PRUV Network — devnet</p>
         </div>
-
-        {/* Single real node */}
-        <div className="flex items-center gap-3 p-3 rounded-xl border border-sky-600 bg-sky-950/30">
-          <span className="w-2 h-2 rounded-full bg-emerald-400 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-mono text-sky-300 truncate">{OPERATOR.slice(0,8)}…{OPERATOR.slice(-4)}</p>
-            <p className="text-xs text-zinc-600 mt-0.5">devnet operator node</p>
-          </div>
-        </div>
-
         <p className="text-center text-sm text-zinc-400">
-          Connect the node operator wallet to open the portal.
-        </p>
-
-        <p className="text-center text-xs text-zinc-700">
-          Only the registered operator wallet can enter
+          Connect a wallet. Any wallet can register as a node by staking {Number(MIN_NODE_STAKE_LAMPORTS) / 1e9} SOL;
+          only registered nodes can cast draw votes.
         </p>
       </div>
     </div>
@@ -121,9 +109,47 @@ export default function OperatorPage() {
   const [myVotedRound, setMyVotedRound] = useState<bigint | null>(null);
   const [claimedRound, setClaimedRound] = useState<bigint | null>(null);
   const [nodeBalance, setNodeBalance] = useState<bigint>(0n);
+  const [record, setRecord] = useState<NodeRecordInfo | null | undefined>(undefined);
+  const [busy, setBusy] = useState(false);
+  const { registry } = useNodeRegistry();
 
-  const isOperator = publicKey?.toBase58() === OPERATOR;
+  const isOperator = !!record?.active;
   const canSign = isOperator && !!anchorWallet;
+
+  // Own registration record
+  useEffect(() => {
+    if (!publicKey) return;
+    let cancelled = false;
+    const conn = getConnection();
+    const load = () => fetchNodeRecord(conn, publicKey).then(r => { if (!cancelled) setRecord(r); });
+    load();
+    const id = setInterval(load, 15_000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [publicKey]);
+
+  async function handleRegister() {
+    if (!anchorWallet || !publicKey) { toast("Connect a wallet", "error"); return; }
+    setBusy(true);
+    try {
+      const sig = await registerNode(anchorWallet, connection);
+      toast(`Registered · ${sig.slice(0, 8)}…`, "success");
+      setRecord(await fetchNodeRecord(connection, publicKey));
+    } catch (e) {
+      toast(e instanceof Error ? e.message.slice(0, 100) : "register_node failed", "error");
+    } finally { setBusy(false); }
+  }
+
+  async function handleExit() {
+    if (!anchorWallet || !publicKey) return;
+    setBusy(true);
+    try {
+      const sig = await exitNode(anchorWallet, connection);
+      toast(`Exited · stake returned · ${sig.slice(0, 8)}…`, "success");
+      setRecord(null);
+    } catch (e) {
+      toast(e instanceof Error ? e.message.slice(0, 100) : "exit_node failed", "error");
+    } finally { setBusy(false); }
+  }
 
   // Check if already voted for current round
   useEffect(() => {
@@ -148,6 +174,7 @@ export default function OperatorPage() {
 
   // ── cast_draw_vote ──────────────────────────────────────────────────────────
   async function handleVote() {
+    if (!publicKey) { toast("Connect a wallet", "error"); return; }
     if (!canSign || !round) { toast("Connect operator wallet", "error"); return; }
     try {
       const conn = getConnection();
@@ -185,6 +212,7 @@ export default function OperatorPage() {
 
   // ── claim_node_prize ────────────────────────────────────────────────────────
   async function handleClaim() {
+    if (!publicKey) { toast("Connect a wallet", "error"); return; }
     if (!canSign || !round) { toast("Connect operator wallet", "error"); return; }
     try {
       const program = getLotteryProgram(anchorWallet, connection);
@@ -237,8 +265,10 @@ export default function OperatorPage() {
             <span className="text-sky-400">⬡</span> Node Operator Portal
           </h1>
           <p className="font-mono text-zinc-500 text-sm mt-0.5">
-            {publicKey?.toBase58().slice(0, 8) ?? OPERATOR.slice(0, 8)}…
-            {isOperator && <span className="ml-2 text-emerald-400">(operator wallet)</span>}
+            {publicKey?.toBase58().slice(0, 8) ?? "—"}…
+            {isOperator
+              ? <span className="ml-2 text-emerald-400">(registered node)</span>
+              : <span className="ml-2 text-zinc-500">(not registered)</span>}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -253,8 +283,17 @@ export default function OperatorPage() {
       </div>
 
       {!canSign && (
-        <div className="border border-yellow-800 bg-yellow-950/20 rounded-xl px-4 py-3 text-xs text-yellow-400">
-          ⚠️ Connect the operator wallet to send transactions ({OPERATOR.slice(0, 8)}…{OPERATOR.slice(-4)})
+        <div className="border border-yellow-800 bg-yellow-950/20 rounded-xl px-4 py-3 text-xs text-yellow-400 flex items-center justify-between gap-3 flex-wrap">
+          <span>
+            {record === undefined ? "Reading your registration…" : "This wallet is not a registered node. Stake "}
+            {record !== undefined && `${Number(MIN_NODE_STAKE_LAMPORTS) / 1e9} SOL to register; the stake is returned when you exit.`}
+          </span>
+          {record === null && (
+            <button onClick={handleRegister} disabled={busy || !anchorWallet}
+              className="px-3 py-1.5 rounded-lg bg-sky-700 hover:bg-sky-600 disabled:bg-zinc-700 text-white text-xs font-semibold">
+              {busy ? "Sending…" : "register_node (0.1 SOL)"}
+            </button>
+          )}
         </div>
       )}
 
@@ -420,11 +459,18 @@ export default function OperatorPage() {
           <div className="border border-sky-900/50 bg-sky-950/10 rounded-xl p-4 space-y-3">
             <p className="text-xs text-zinc-500 uppercase tracking-widest">Your Node</p>
             <div className="space-y-2 text-sm">
-              <Row label="Pubkey"  value={`${OPERATOR.slice(0,8)}…${OPERATOR.slice(-4)}`} mono />
+              <Row label="Pubkey"  value={publicKey ? `${publicKey.toBase58().slice(0,8)}…${publicKey.toBase58().slice(-4)}` : "—"} mono />
               <Row label="Balance" value={fmtSol(nodeBalance)} accent />
-              <Row label="Type"    value="Devnet operator" />
-              <Row label="Roles"   value="authority · treasury · node" />
+              <Row label="Stake"   value={record?.active ? fmtSol(record.stakeLamports) : "not staked"} />
+              <Row label="Votes cast" value={record ? record.votesCast.toString() : "—"} />
+              <Row label="Registry" value={registry ? `${registry.active} active` : "—"} />
             </div>
+            {record?.active && (
+              <button onClick={handleExit} disabled={busy || !anchorWallet}
+                className="w-full text-xs py-2 rounded-lg border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500 disabled:opacity-50">
+                {busy ? "Sending…" : "exit_node · return stake"}
+              </button>
+            )}
           </div>
 
           {/* Config summary */}

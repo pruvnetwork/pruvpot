@@ -202,5 +202,11 @@ main > *:nth-child(4) { animation-delay: 120ms; }
 
 
 /* Operator / admin tools are dark-only (internal screens); keep them legible in light mode. */
-.ops-dark { color: #e4e4e7; }
+.ops-dark {
+  color: #e4e4e7;
+  background: #0b0b14;
+  border-radius: 16px;
+  padding-left: 16px;
+  padding-right: 16px;
+}
 body:has(.ops-dark) { background: #0b0b14; }

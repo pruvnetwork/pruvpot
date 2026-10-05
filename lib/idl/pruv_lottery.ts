@@ -264,6 +264,30 @@ export type PruvLottery = {
           "address": "SysvarS1otHashes111111111111111111111111111"
         },
         {
+          "name": "nodeRecord",
+          "docs": [
+            "Only registered, active operators may vote."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  111,
+                  100,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "nodeOperator"
+              }
+            ]
+          }
+        },
+        {
           "name": "nodeOperator",
           "writable": true,
           "signer": true
@@ -373,6 +397,79 @@ export type PruvLottery = {
       ]
     },
     {
+      "name": "exitNode",
+      "docs": [
+        "Leave the registry. The record is closed and its full balance (stake +",
+        "rent) is returned to the operator. Prize claims for past votes remain",
+        "possible: they are keyed by the DrawVote accounts, not by this record."
+      ],
+      "discriminator": [
+        127,
+        144,
+        206,
+        137,
+        196,
+        37,
+        165,
+        43
+      ],
+      "accounts": [
+        {
+          "name": "nodeRecord",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  111,
+                  100,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "nodeOperator"
+              }
+            ]
+          }
+        },
+        {
+          "name": "registry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  111,
+                  100,
+                  101,
+                  95,
+                  114,
+                  101,
+                  103,
+                  105,
+                  115,
+                  116,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "nodeOperator",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "finalizeDraw",
       "discriminator": [
         112,
@@ -406,6 +503,31 @@ export type PruvLottery = {
                   102,
                   105,
                   103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "registry",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  111,
+                  100,
+                  101,
+                  95,
+                  114,
+                  101,
+                  103,
+                  105,
+                  115,
+                  116,
+                  114,
+                  121
                 ]
               }
             ]
@@ -686,7 +808,7 @@ export type PruvLottery = {
       "name": "lockConfig",
       "docs": [
         "Permanently freezes the configuration. Creates the `lottery_lock` PDA;",
-        "while it exists, `update_config` and `update_node_count` are rejected.",
+        "while it exists, `update_config` is rejected (node registration stays open).",
         "There is no unlock. Round opening, ticket sales, voting, finalization",
         "and claims are unaffected (none of them are authority-gated)."
       ],
@@ -766,6 +888,89 @@ export type PruvLottery = {
         }
       ],
       "args": []
+    },
+    {
+      "name": "registerNode",
+      "docs": [
+        "Register as a node operator by locking `stake_lamports` (≥ MIN_NODE_STAKE)",
+        "in a `NodeRecord` PDA. Only registered, active nodes may cast draw votes,",
+        "and the 2/3 threshold is computed over the registry's active count.",
+        "Permissionless; works before and after `lock_config`."
+      ],
+      "discriminator": [
+        102,
+        85,
+        117,
+        114,
+        194,
+        188,
+        211,
+        168
+      ],
+      "accounts": [
+        {
+          "name": "nodeRecord",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  111,
+                  100,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "nodeOperator"
+              }
+            ]
+          }
+        },
+        {
+          "name": "registry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  111,
+                  100,
+                  101,
+                  95,
+                  114,
+                  101,
+                  103,
+                  105,
+                  115,
+                  116,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "nodeOperator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "stakeLamports",
+          "type": "u64"
+        }
+      ]
     },
     {
       "name": "updateConfig",
@@ -872,88 +1077,12 @@ export type PruvLottery = {
           "type": {
             "option": "u64"
           }
-        }
-      ]
-    },
-    {
-      "name": "updateNodeCount",
-      "discriminator": [
-        172,
-        38,
-        139,
-        55,
-        2,
-        94,
-        20,
-        45
-      ],
-      "accounts": [
-        {
-          "name": "config",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  108,
-                  111,
-                  116,
-                  116,
-                  101,
-                  114,
-                  121,
-                  95,
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
-              }
-            ]
-          }
         },
         {
-          "name": "lock",
-          "docs": [
-            "to succeed; once `lock_config` has created it, config is frozen forever."
-          ],
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  108,
-                  111,
-                  116,
-                  116,
-                  101,
-                  114,
-                  121,
-                  95,
-                  108,
-                  111,
-                  99,
-                  107
-                ]
-              }
-            ]
+          "name": "newThresholdBps",
+          "type": {
+            "option": "u64"
           }
-        },
-        {
-          "name": "authority",
-          "signer": true,
-          "relations": [
-            "config"
-          ]
-        }
-      ],
-      "args": [
-        {
-          "name": "newCount",
-          "type": "u32"
         }
       ]
     }
@@ -1025,6 +1154,32 @@ export type PruvLottery = {
       ]
     },
     {
+      "name": "nodeRecord",
+      "discriminator": [
+        197,
+        233,
+        27,
+        85,
+        153,
+        138,
+        216,
+        115
+      ]
+    },
+    {
+      "name": "nodeRegistry",
+      "discriminator": [
+        44,
+        159,
+        137,
+        51,
+        245,
+        185,
+        177,
+        45
+      ]
+    },
+    {
       "name": "ticket",
       "discriminator": [
         41,
@@ -1079,6 +1234,19 @@ export type PruvLottery = {
       ]
     },
     {
+      "name": "nodeExited",
+      "discriminator": [
+        80,
+        101,
+        249,
+        168,
+        214,
+        181,
+        167,
+        235
+      ]
+    },
+    {
       "name": "nodePrizeClaimed",
       "discriminator": [
         43,
@@ -1089,6 +1257,19 @@ export type PruvLottery = {
         140,
         115,
         70
+      ]
+    },
+    {
+      "name": "nodeRegistered",
+      "discriminator": [
+        15,
+        57,
+        183,
+        59,
+        93,
+        55,
+        157,
+        195
       ]
     },
     {
@@ -1211,6 +1392,21 @@ export type PruvLottery = {
       "code": 6015,
       "name": "configLocked",
       "msg": "Configuration is locked"
+    },
+    {
+      "code": 6016,
+      "name": "nodeNotRegistered",
+      "msg": "Node is not registered or not active"
+    },
+    {
+      "code": 6017,
+      "name": "stakeTooLow",
+      "msg": "Stake below MIN_NODE_STAKE_LAMPORTS"
+    },
+    {
+      "code": 6018,
+      "name": "noActiveNodes",
+      "msg": "No active nodes or no votes"
     }
   ],
   "types": [
@@ -1330,6 +1526,9 @@ export type PruvLottery = {
           },
           {
             "name": "activeNodeCount",
+            "docs": [
+              "Legacy: no longer used for the threshold (see NodeRegistry.active)."
+            ],
             "type": "u32"
           },
           {
@@ -1430,6 +1629,26 @@ export type PruvLottery = {
       }
     },
     {
+      "name": "nodeExited",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "operator",
+            "type": "pubkey"
+          },
+          {
+            "name": "stakeReturned",
+            "type": "u64"
+          },
+          {
+            "name": "activeNodes",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
       "name": "nodePrizeClaimed",
       "type": {
         "kind": "struct",
@@ -1469,6 +1688,84 @@ export type PruvLottery = {
           {
             "name": "claimedCount",
             "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "nodeRecord",
+      "docs": [
+        "One per registered operator; holds the operator's stake."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "operator",
+            "type": "pubkey"
+          },
+          {
+            "name": "stakeLamports",
+            "type": "u64"
+          },
+          {
+            "name": "registeredSlot",
+            "type": "u64"
+          },
+          {
+            "name": "votesCast",
+            "type": "u64"
+          },
+          {
+            "name": "active",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "nodeRegistered",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "operator",
+            "type": "pubkey"
+          },
+          {
+            "name": "stakeLamports",
+            "type": "u64"
+          },
+          {
+            "name": "activeNodes",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "nodeRegistry",
+      "docs": [
+        "Global node registry: the active count drives the 2/3 vote threshold."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "active",
+            "type": "u32"
+          },
+          {
+            "name": "totalRegistered",
+            "type": "u64"
           },
           {
             "name": "bump",

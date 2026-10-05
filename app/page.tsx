@@ -22,24 +22,15 @@ import { buyTicket, initializeRound } from "@/lib/lottery-client";
 import { useLotteryState } from "@/hooks/useLotteryState";
 import { useRoundHistory } from "@/hooks/useRoundHistory";
 import { useDrawVotes } from "@/hooks/useDrawVotes";
+import { useNodeRegistry } from "@/hooks/useNodeRegistry";
 import { winnerShareLamports } from "@/lib/shares";
 
-// Known operator(s) shown before any vote has been cast this round. Once votes
-// exist, the list is built from the on-chain DrawVote accounts instead.
-const KNOWN_NODES: NodeInfo[] = [
-  {
-    operatorPubkey: process.env.NEXT_PUBLIC_OPERATOR ?? "9XvGmv2HCcr9BDVEwnj2oN9ZMrgEDATJDKk943tMUnxq",
-    stakeAmount: 0n,
-    reputation: 100,
-    totalAttestations: 0,
-    isActive: true,
-  },
-];
 
 export default function Home() {
   const { round, countdown, ticketPriceLamports, nodeShareBps, treasuryShareBps, loading, error } = useLotteryState();
   const { history, totalPaidLamports } = useRoundHistory();
   const votes = useDrawVotes(round?.roundId ?? null);
+  const { nodes: registeredNodes } = useNodeRegistry();
   const [winner, setWinner] = useState<string | null>(null);
   const [showBanner, setShowBanner] = useState(false);
   const prevWinnerRef = useRef<string | null>(null);
@@ -116,9 +107,10 @@ export default function Home() {
   // finalize_draw zeroes prize_pool_lamports on-chain; reconstruct it for display.
   const poolLamports = round.prizePoolLamports > 0n ? round.prizePoolLamports : round.ticketCount * ticketPriceLamports;
   const winnerSol = Number(winnerShareLamports(poolLamports, nodeShareBps, treasuryShareBps)) / 1e9;
-  const nodeList: NodeInfo[] = votes.length
-    ? votes.map((v) => ({ operatorPubkey: v.nodePubkey, stakeAmount: 0n, reputation: 100, totalAttestations: 0, isActive: true }))
-    : KNOWN_NODES;
+  // Registered (staked) nodes from the on-chain registry; votes mark who has voted.
+  const nodeList: NodeInfo[] = registeredNodes
+    .filter((n) => n.active)
+    .map((n) => ({ operatorPubkey: n.operator, stakeAmount: n.stakeLamports, reputation: Number(n.votesCast), totalAttestations: 0, isActive: true }));
 
   // On-chain status stays `Open` until a node casts its draw vote, but the
   // program rejects buy_ticket once `end_slot` passes (LotteryError::RoundEnded).

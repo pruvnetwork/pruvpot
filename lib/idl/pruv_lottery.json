@@ -258,6 +258,30 @@
           "address": "SysvarS1otHashes111111111111111111111111111"
         },
         {
+          "name": "node_record",
+          "docs": [
+            "Only registered, active operators may vote."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  111,
+                  100,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "node_operator"
+              }
+            ]
+          }
+        },
+        {
           "name": "node_operator",
           "writable": true,
           "signer": true
@@ -367,6 +391,79 @@
       ]
     },
     {
+      "name": "exit_node",
+      "docs": [
+        "Leave the registry. The record is closed and its full balance (stake +",
+        "rent) is returned to the operator. Prize claims for past votes remain",
+        "possible: they are keyed by the DrawVote accounts, not by this record."
+      ],
+      "discriminator": [
+        127,
+        144,
+        206,
+        137,
+        196,
+        37,
+        165,
+        43
+      ],
+      "accounts": [
+        {
+          "name": "node_record",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  111,
+                  100,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "node_operator"
+              }
+            ]
+          }
+        },
+        {
+          "name": "registry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  111,
+                  100,
+                  101,
+                  95,
+                  114,
+                  101,
+                  103,
+                  105,
+                  115,
+                  116,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "node_operator",
+          "writable": true,
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "finalize_draw",
       "discriminator": [
         112,
@@ -400,6 +497,31 @@
                   102,
                   105,
                   103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "registry",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  111,
+                  100,
+                  101,
+                  95,
+                  114,
+                  101,
+                  103,
+                  105,
+                  115,
+                  116,
+                  114,
+                  121
                 ]
               }
             ]
@@ -680,7 +802,7 @@
       "name": "lock_config",
       "docs": [
         "Permanently freezes the configuration. Creates the `lottery_lock` PDA;",
-        "while it exists, `update_config` and `update_node_count` are rejected.",
+        "while it exists, `update_config` is rejected (node registration stays open).",
         "There is no unlock. Round opening, ticket sales, voting, finalization",
         "and claims are unaffected (none of them are authority-gated)."
       ],
@@ -760,6 +882,89 @@
         }
       ],
       "args": []
+    },
+    {
+      "name": "register_node",
+      "docs": [
+        "Register as a node operator by locking `stake_lamports` (≥ MIN_NODE_STAKE)",
+        "in a `NodeRecord` PDA. Only registered, active nodes may cast draw votes,",
+        "and the 2/3 threshold is computed over the registry's active count.",
+        "Permissionless; works before and after `lock_config`."
+      ],
+      "discriminator": [
+        102,
+        85,
+        117,
+        114,
+        194,
+        188,
+        211,
+        168
+      ],
+      "accounts": [
+        {
+          "name": "node_record",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  111,
+                  100,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "node_operator"
+              }
+            ]
+          }
+        },
+        {
+          "name": "registry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  111,
+                  100,
+                  101,
+                  95,
+                  114,
+                  101,
+                  103,
+                  105,
+                  115,
+                  116,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "node_operator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "stake_lamports",
+          "type": "u64"
+        }
+      ]
     },
     {
       "name": "update_config",
@@ -866,88 +1071,12 @@
           "type": {
             "option": "u64"
           }
-        }
-      ]
-    },
-    {
-      "name": "update_node_count",
-      "discriminator": [
-        172,
-        38,
-        139,
-        55,
-        2,
-        94,
-        20,
-        45
-      ],
-      "accounts": [
-        {
-          "name": "config",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  108,
-                  111,
-                  116,
-                  116,
-                  101,
-                  114,
-                  121,
-                  95,
-                  99,
-                  111,
-                  110,
-                  102,
-                  105,
-                  103
-                ]
-              }
-            ]
-          }
         },
         {
-          "name": "lock",
-          "docs": [
-            "to succeed; once `lock_config` has created it, config is frozen forever."
-          ],
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  108,
-                  111,
-                  116,
-                  116,
-                  101,
-                  114,
-                  121,
-                  95,
-                  108,
-                  111,
-                  99,
-                  107
-                ]
-              }
-            ]
+          "name": "new_threshold_bps",
+          "type": {
+            "option": "u64"
           }
-        },
-        {
-          "name": "authority",
-          "signer": true,
-          "relations": [
-            "config"
-          ]
-        }
-      ],
-      "args": [
-        {
-          "name": "new_count",
-          "type": "u32"
         }
       ]
     }
@@ -1019,6 +1148,32 @@
       ]
     },
     {
+      "name": "NodeRecord",
+      "discriminator": [
+        197,
+        233,
+        27,
+        85,
+        153,
+        138,
+        216,
+        115
+      ]
+    },
+    {
+      "name": "NodeRegistry",
+      "discriminator": [
+        44,
+        159,
+        137,
+        51,
+        245,
+        185,
+        177,
+        45
+      ]
+    },
+    {
       "name": "Ticket",
       "discriminator": [
         41,
@@ -1073,6 +1228,19 @@
       ]
     },
     {
+      "name": "NodeExited",
+      "discriminator": [
+        80,
+        101,
+        249,
+        168,
+        214,
+        181,
+        167,
+        235
+      ]
+    },
+    {
       "name": "NodePrizeClaimed",
       "discriminator": [
         43,
@@ -1083,6 +1251,19 @@
         140,
         115,
         70
+      ]
+    },
+    {
+      "name": "NodeRegistered",
+      "discriminator": [
+        15,
+        57,
+        183,
+        59,
+        93,
+        55,
+        157,
+        195
       ]
     },
     {
@@ -1205,6 +1386,21 @@
       "code": 6015,
       "name": "ConfigLocked",
       "msg": "Configuration is locked"
+    },
+    {
+      "code": 6016,
+      "name": "NodeNotRegistered",
+      "msg": "Node is not registered or not active"
+    },
+    {
+      "code": 6017,
+      "name": "StakeTooLow",
+      "msg": "Stake below MIN_NODE_STAKE_LAMPORTS"
+    },
+    {
+      "code": 6018,
+      "name": "NoActiveNodes",
+      "msg": "No active nodes or no votes"
     }
   ],
   "types": [
@@ -1324,6 +1520,9 @@
           },
           {
             "name": "active_node_count",
+            "docs": [
+              "Legacy: no longer used for the threshold (see NodeRegistry.active)."
+            ],
             "type": "u32"
           },
           {
@@ -1424,6 +1623,26 @@
       }
     },
     {
+      "name": "NodeExited",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "operator",
+            "type": "pubkey"
+          },
+          {
+            "name": "stake_returned",
+            "type": "u64"
+          },
+          {
+            "name": "active_nodes",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
       "name": "NodePrizeClaimed",
       "type": {
         "kind": "struct",
@@ -1463,6 +1682,84 @@
           {
             "name": "claimed_count",
             "type": "u8"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "NodeRecord",
+      "docs": [
+        "One per registered operator; holds the operator's stake."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "operator",
+            "type": "pubkey"
+          },
+          {
+            "name": "stake_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "registered_slot",
+            "type": "u64"
+          },
+          {
+            "name": "votes_cast",
+            "type": "u64"
+          },
+          {
+            "name": "active",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "NodeRegistered",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "operator",
+            "type": "pubkey"
+          },
+          {
+            "name": "stake_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "active_nodes",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "NodeRegistry",
+      "docs": [
+        "Global node registry: the active count drives the 2/3 vote threshold."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "active",
+            "type": "u32"
+          },
+          {
+            "name": "total_registered",
+            "type": "u64"
           },
           {
             "name": "bump",

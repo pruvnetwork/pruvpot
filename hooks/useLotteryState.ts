@@ -5,7 +5,7 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { getConnection, isEndpointFailure, advanceEndpoint } from "@/lib/rpc";
 import { Program, AnchorProvider } from "@coral-xyz/anchor";
 import IDL from "@/lib/idl/pruv_lottery.json";
-import { PROGRAM_ID, getConfigPDA, getLotteryStatePDA } from "@/lib/lottery-client";
+import { PROGRAM_ID, getConfigPDA, getLotteryStatePDA , fetchRegistry } from "@/lib/lottery-client";
 import type { LotteryRoundState } from "@/lib/types";
 
 
@@ -116,7 +116,8 @@ export function useLotteryState(): LotteryChainState {
         const cfg = await (program.account as any).lotteryConfig.fetch(configPDA);
         const currentRoundId: bigint = BigInt(cfg.currentRoundId.toString());
         const ticketPriceLamports: bigint = BigInt(cfg.ticketPriceLamports.toString());
-        const activeNodeCount: number = Number(cfg.activeNodeCount);
+        // The threshold is over the staked registry, not the legacy config field.
+        const activeNodeCount: number = (await fetchRegistry(connection))?.active ?? 0;
         const thresholdBps: bigint = BigInt(cfg.thresholdBps.toString());
         const nodeShareBps: number = Number(cfg.nodeShareBps ?? 1000);
         const treasuryShareBps: number = Number(cfg.treasuryShareBps ?? 500);

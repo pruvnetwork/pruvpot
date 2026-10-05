@@ -56,8 +56,8 @@ export default function NodeConsensus({ nodes, votes, required, registered, stat
               <span className="text-xs flex-1" style={{ color: "var(--text-secondary)", fontFamily: "var(--font-mono)" }}>
                 {shortenAddress(node.operatorPubkey)}
               </span>
-              <span className="text-xs" style={{ color: "var(--text-muted)" }}>
-                Rep {node.reputation}
+              <span className="text-xs" style={{ color: "var(--text-muted)", fontFamily: "var(--font-mono)" }}>
+                {(Number(node.stakeAmount) / 1e9).toFixed(2)} SOL staked
               </span>
               {voted && vote && (
                 <span className="text-xs" style={{ color: "var(--success-color)", fontFamily: "var(--font-mono)" }}>
@@ -82,7 +82,7 @@ export default function NodeConsensus({ nodes, votes, required, registered, stat
 
       {status === 0 && (
         <p className="mt-3 text-xs text-center" style={{ color: "var(--text-muted)" }}>
-          Nodes will cast votes once the round ends
+          {nodes.length === 0 ? "No registered nodes yet — register from the operator portal" : "Nodes will cast votes once the round ends"}
         </p>
       )}
     </div>

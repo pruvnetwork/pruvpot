@@ -119,3 +119,101 @@ export async function initializeRound(wallet: AnchorWallet, connection: Connecti
     .accounts({ config: configPDA, lotteryState: statePDA, payer: wallet.publicKey, systemProgram: SystemProgram.programId })
     .rpc();
 }
+
+// ─── Node registry (stake-backed) ─────────────────────────────────────────────
+
+/** Mirrors MIN_NODE_STAKE_LAMPORTS in the program (0.1 SOL). */
+export const MIN_NODE_STAKE_LAMPORTS = 100_000_000n;
+
+export function getRegistryPDA(): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync([Buffer.from("node_registry")], PROGRAM_ID);
+}
+
+export function getNodeRecordPDA(operator: PublicKey): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync([Buffer.from("node"), operator.toBuffer()], PROGRAM_ID);
+}
+
+export interface NodeRegistryInfo { active: number; totalRegistered: number }
+export interface NodeRecordInfo {
+  operator: string;
+  stakeLamports: bigint;
+  registeredSlot: bigint;
+  votesCast: bigint;
+  active: boolean;
+}
+
+function readProgram(connection: Connection) {
+  const dummy = {
+    publicKey: PublicKey.default,
+    signTransaction: async <T,>(tx: T) => tx,
+    signAllTransactions: async <T,>(txs: T[]) => txs,
+  };
+  const provider = new AnchorProvider(connection, dummy as never, { commitment: "confirmed" });
+  return new Program(IDL as PruvLottery, provider);
+}
+
+/** null until the first node has registered. */
+export async function fetchRegistry(connection: Connection): Promise<NodeRegistryInfo | null> {
+  try {
+    const [pda] = getRegistryPDA();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const r: any = await (readProgram(connection).account as any).nodeRegistry.fetch(pda);
+    return { active: Number(r.active), totalRegistered: Number(r.totalRegistered.toString()) };
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchNodeRecord(connection: Connection, operator: PublicKey): Promise<NodeRecordInfo | null> {
+  try {
+    const [pda] = getNodeRecordPDA(operator);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const r: any = await (readProgram(connection).account as any).nodeRecord.fetch(pda);
+    return {
+      operator: (r.operator as PublicKey).toBase58(),
+      stakeLamports: BigInt(r.stakeLamports.toString()),
+      registeredSlot: BigInt(r.registeredSlot.toString()),
+      votesCast: BigInt(r.votesCast.toString()),
+      active: Boolean(r.active),
+    };
+  } catch {
+    return null;
+  }
+}
+
+/** Every registered node (NodeRecord accounts), newest first. */
+export async function fetchAllNodeRecords(connection: Connection): Promise<NodeRecordInfo[]> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const all: any[] = await (readProgram(connection).account as any).nodeRecord.all();
+  return all
+    .map(({ account: r }) => ({
+      operator: (r.operator as PublicKey).toBase58(),
+      stakeLamports: BigInt(r.stakeLamports.toString()),
+      registeredSlot: BigInt(r.registeredSlot.toString()),
+      votesCast: BigInt(r.votesCast.toString()),
+      active: Boolean(r.active),
+    }))
+    .sort((a, b) => Number(b.registeredSlot - a.registeredSlot));
+}
+
+/** Lock `stakeLamports` (≥ MIN_NODE_STAKE_LAMPORTS) and join the registry. */
+export async function registerNode(wallet: AnchorWallet, connection: Connection, stakeLamports: bigint = MIN_NODE_STAKE_LAMPORTS): Promise<string> {
+  const program = getLotteryProgram(wallet, connection);
+  const [nodeRecord] = getNodeRecordPDA(wallet.publicKey);
+  const [registry] = getRegistryPDA();
+  return program.methods
+    .registerNode(new BN(stakeLamports.toString()))
+    .accounts({ nodeRecord, registry, nodeOperator: wallet.publicKey, systemProgram: SystemProgram.programId })
+    .rpc();
+}
+
+/** Leave the registry; stake and rent come back to the wallet. */
+export async function exitNode(wallet: AnchorWallet, connection: Connection): Promise<string> {
+  const program = getLotteryProgram(wallet, connection);
+  const [nodeRecord] = getNodeRecordPDA(wallet.publicKey);
+  const [registry] = getRegistryPDA();
+  return program.methods
+    .exitNode()
+    .accounts({ nodeRecord, registry, nodeOperator: wallet.publicKey })
+    .rpc();
+}

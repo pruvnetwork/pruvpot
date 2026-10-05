@@ -9,6 +9,7 @@ import { useToast } from "@/components/Toast";
 import { useLotteryState } from "@/hooks/useLotteryState";
 import { useDrawVotes } from "@/hooks/useDrawVotes";
 import { useOnChainEvents } from "@/hooks/useOnChainEvents";
+import { useNodeRegistry } from "@/hooks/useNodeRegistry";
 import { getLotteryProgram, PROGRAM_ID, getConfigPDA, getLotteryStatePDA, getTicketPDA, u64LE, fetchConfigLocked, lockConfig } from "@/lib/lottery-client";
 import IDL from "@/lib/idl/pruv_lottery.json";
 
@@ -178,6 +179,7 @@ export default function AdminPage() {
   const votes = useDrawVotes(round?.roundId ?? null);
   const events = useOnChainEvents(30);
   const { cfg, treasuryBalance, locked } = useAdminConfig();
+  const { registry } = useNodeRegistry();
   const [lockArmed, setLockArmed] = useState(false);
 
   const onAuth = useCallback(() => setAuthed(true), []);
@@ -204,21 +206,6 @@ export default function AdminPage() {
     }
   }
 
-  async function handleUpdateNodeCount() {
-    if (!canSign || !cfg) { toast("Connect authority wallet", "error"); return; }
-    try {
-      const program = getLotteryProgram(anchorWallet, connection);
-      const [configPDA] = getConfigPDA();
-      const sig = await program.methods
-        .updateNodeCount(cfg.activeNodeCount)
-        .accounts({ config: configPDA, authority: publicKey })
-        .rpc({ commitment: "confirmed" });
-      toast(`Node count synced · ${sig.slice(0, 8)}…`, "success");
-    } catch (e) {
-      toast(e instanceof Error ? e.message.slice(0, 80) : "TX failed", "error");
-    }
-  }
-
   async function handleUpdateConfig() {
     if (!canSign) { toast("Connect authority wallet", "error"); return; }
     let tPubkey: PublicKey | null = null;
@@ -232,7 +219,7 @@ export default function AdminPage() {
       const program = getLotteryProgram(anchorWallet, connection);
       const [configPDA] = getConfigPDA();
       const sig = await program.methods
-        .updateConfig(tPubkey ?? null, aPubkey ?? null, null, null)
+        .updateConfig(tPubkey ?? null, aPubkey ?? null, null, null, null)
         .accounts({ config: configPDA, authority: publicKey })
         .rpc({ commitment: "confirmed" });
       toast(`Config updated · ${sig.slice(0, 8)}…`, "success");
@@ -409,12 +396,13 @@ export default function AdminPage() {
               )}
             </div>
 
-            <IxButton
-              label="update_node_count · Sync operators"
-              description={locked ? "Frozen by lock_config" : `Current: ${cfg?.activeNodeCount ?? "?"} nodes — updates threshold for draw votes`}
-              disabled={!canSign || !!locked}
-              onClick={handleUpdateNodeCount}
-            />
+            <div className="p-4 bg-zinc-800/40 rounded-xl">
+              <p className="text-sm font-semibold text-zinc-200">Node count · from the staked registry</p>
+              <p className="text-xs text-zinc-500 mt-0.5">
+                {registry ? `${registry.active} active node(s), ${registry.totalRegistered} registered in total` : "No node registered yet"}.
+                The authority cannot set this number; operators join with register_node (0.1 SOL stake) and leave with exit_node.
+              </p>
+            </div>
 
             {/* update_config: rotate treasury / authority */}
             <div className="p-4 bg-zinc-800/40 rounded-xl space-y-3">
@@ -531,7 +519,7 @@ export default function AdminPage() {
 
           {/* Nodes */}
           <div className="border border-zinc-800 bg-zinc-900/50 rounded-xl p-4 space-y-3">
-            <p className="text-xs text-zinc-500 uppercase tracking-widest">Active Nodes ({cfg?.activeNodeCount ?? 0})</p>
+            <p className="text-xs text-zinc-500 uppercase tracking-widest">Active Nodes ({registry?.active ?? 0}, staked registry)</p>
             <div className="flex items-center gap-2 text-xs">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
               <span className="font-mono text-zinc-400 flex-1 truncate">{AUTHORITY.slice(0,8)}…{AUTHORITY.slice(-4)}</span>
