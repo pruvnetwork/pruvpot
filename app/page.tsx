@@ -11,7 +11,6 @@ import BuyTicketButton from "@/components/BuyTicketButton";
 import StatsBar from "@/components/StatsBar";
 import LiveFeed from "@/components/LiveFeed";
 import WinnerReveal from "@/components/WinnerReveal";
-import ReferralCard from "@/components/ReferralCard";
 import ShareButton from "@/components/ShareButton";
 import WinnerBanner from "@/components/WinnerBanner";
 import LiveChat from "@/components/LiveChat";
@@ -346,8 +345,6 @@ export default function Home() {
               </div>
             ))}
           </div>
-
-          <ReferralCard />
 
           {/* Live Chat — Twitch style */}
           <LiveChat

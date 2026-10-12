@@ -122,7 +122,7 @@ export default function LiveChat({
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
   }
 
-  // Count unique buyers from events as "online" indicator
+  // Unique ticket buyers seen in on-chain events (not live presence)
   const onlineCount = new Set(
     events.filter(e => e.type === "TicketPurchased").map(e => (e as { buyer: string }).buyer)
   ).size || 1;
@@ -145,10 +145,10 @@ export default function LiveChat({
         onMouseLeave={(e) => { if (!sidebar) (e.currentTarget as HTMLElement).style.background = "transparent"; }}
       >
         <div className="flex items-center gap-2">
-          <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Live Chat</span>
+          <span className="text-sm font-semibold" style={{ color: "var(--text-primary)" }}>Chat (this browser)</span>
           <span className="flex items-center gap-1 text-xs font-medium" style={{ color: "var(--success-color)" }}>
             <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: "var(--success-color)" }} />
-            {onlineCount} online
+            {onlineCount} {onlineCount === 1 ? "player" : "players"}
           </span>
         </div>
         {!sidebar && (

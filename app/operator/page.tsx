@@ -16,7 +16,6 @@ import IDL from "@/lib/idl/pruv_lottery.json";
 import { getConnection } from "@/lib/rpc";
 import { fetchNodeRecord, registerNode, exitNode, MIN_NODE_STAKE_LAMPORTS, type NodeRecordInfo } from "@/lib/lottery-client";
 import { useNodeRegistry } from "@/hooks/useNodeRegistry";
-import { DEFAULT_NODE_BPS, DEFAULT_TREASURY_BPS } from "@/lib/shares";
 
 function hasWinnerShare(e: unknown): e is { winnerShare: bigint | string | number } {
   return typeof e === "object" && e !== null && "winnerShare" in e && (e as { winnerShare?: unknown }).winnerShare != null;
@@ -79,7 +78,7 @@ export default function OperatorPage() {
   const anchorWallet = useAnchorWallet();
   const { toast } = useToast();
 
-  const { round, loading: roundLoading } = useLotteryState();
+  const { round, nodeShareBps, treasuryShareBps, loading: roundLoading } = useLotteryState();
   const votes = useDrawVotes(round?.roundId ?? null);
   const events = useOnChainEvents(40);
 
@@ -356,7 +355,7 @@ export default function OperatorPage() {
             )}>
               <div>
                 <p className="text-sm font-semibold text-zinc-200">claim_node_prize</p>
-                <p className="text-xs text-zinc-500 mt-0.5">Claim your share of the 15% node pool from node_prize_pool PDA</p>
+                <p className="text-xs text-zinc-500 mt-0.5">Claim your share of the {nodeShareBps / 100}% node pool, split equally among the nodes that voted</p>
               </div>
               {round?.status !== 2 && <p className="text-xs text-zinc-600">Available after draw is finalized</p>}
               {round?.status === 2 && (hasClaimed ? (
@@ -364,8 +363,8 @@ export default function OperatorPage() {
               ) : (
                 <div className="space-y-2">
                   <div className="flex items-center justify-between text-xs">
-                    <span className="text-zinc-500">Your share (100% — sole operator)</span>
-                    <span className="text-emerald-400 font-semibold">+{fmtSol((prizePool * 15n) / 100n)}</span>
+                    <span className="text-zinc-500">Your share (1 of {Math.max(1, votes.length)} voting nodes)</span>
+                    <span className="text-emerald-400 font-semibold">+{fmtSol((prizePool * BigInt(nodeShareBps)) / 10_000n / BigInt(Math.max(1, votes.length)))}</span>
                   </div>
                   <button
                     onClick={handleClaim}
@@ -408,7 +407,7 @@ export default function OperatorPage() {
             <div className="flex items-center justify-between px-5 py-4 border-b border-zinc-800">
               <h2 className="text-sm font-semibold text-zinc-200 flex items-center gap-2">💰 Earnings History (on-chain)</h2>
               <span className="text-xs text-emerald-400 font-semibold">
-                +{fmtSol(earnedEvents.reduce((s, e) => s + (hasWinnerShare(e) ? (BigInt(e.winnerShare) * BigInt(DEFAULT_NODE_BPS)) / BigInt(10_000 - DEFAULT_NODE_BPS - DEFAULT_TREASURY_BPS) : 0n), 0n))} est.
+                +{fmtSol(earnedEvents.reduce((s, e) => s + (hasWinnerShare(e) ? (BigInt(e.winnerShare) * BigInt(nodeShareBps)) / BigInt(10_000 - nodeShareBps - treasuryShareBps) : 0n), 0n))} est.
               </span>
             </div>
             <div className="divide-y divide-zinc-800/50">
@@ -417,7 +416,7 @@ export default function OperatorPage() {
               )}
               {earnedEvents.map((ev, i) => {
                 // node pool share derived from the winner share with the config split (nodes : winner)
-                const nodeShare = hasWinnerShare(ev) ? (BigInt(ev.winnerShare) * BigInt(DEFAULT_NODE_BPS)) / BigInt(10_000 - DEFAULT_NODE_BPS - DEFAULT_TREASURY_BPS) : 0n;
+                const nodeShare = hasWinnerShare(ev) ? (BigInt(ev.winnerShare) * BigInt(nodeShareBps)) / BigInt(10_000 - nodeShareBps - treasuryShareBps) : 0n;
                 return (
                   <div key={i} className="flex items-center gap-4 px-5 py-3 text-sm hover:bg-zinc-800/20 transition-colors">
                     <span className="font-mono text-zinc-500 w-12">#{ev.roundId.toString()}</span>
@@ -456,8 +455,8 @@ export default function OperatorPage() {
             <p className="text-xs text-zinc-500 uppercase tracking-widest mb-2">Network</p>
             <Row label="Active Nodes"  value={`${round?.activeNodeCount ?? 1}`} />
             <Row label="Threshold"     value={`${threshold}/node(s)`} />
-            <Row label="Node Share"    value="15% per round" />
-            <Row label="Sole Operator" value="100% of 15%" accent />
+            <Row label="Node Share"    value={`${nodeShareBps / 100}% per round`} />
+            <Row label="Split"         value="equal among voting nodes" accent />
           </div>
 
           {/* Vote status */}
