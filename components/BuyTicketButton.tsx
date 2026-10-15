@@ -13,6 +13,8 @@ interface Props {
    * is behind — don't let users sign a tx that is guaranteed to revert.
    */
   ended?: boolean;
+  /** Ended with zero tickets: nothing to draw, the next round opens instead. */
+  empty?: boolean;
 }
 
 function getButtonStyle(status: 0 | 1 | 2, connected: boolean, loading: boolean, success: boolean, ended: boolean) {
@@ -70,7 +72,7 @@ function getButtonStyle(status: 0 | 1 | 2, connected: boolean, loading: boolean,
   };
 }
 
-export default function BuyTicketButton({ status, onBuy, connected, ended = false }: Props) {
+export default function BuyTicketButton({ status, onBuy, connected, ended = false, empty = false }: Props) {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const { promise } = useToast();
@@ -136,6 +138,8 @@ export default function BuyTicketButton({ status, onBuy, connected, ended = fals
         <span className="relative z-10">
           {status === 2
             ? "Round Closed"
+            : ended && empty
+            ? "Round ended · no tickets sold"
             : ended
             ? "Round ended — waiting for draw"
             : status === 1

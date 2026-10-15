@@ -116,6 +116,8 @@ export default function Home() {
   // If the keeper is lagging this gap can last indefinitely, so treat an
   // expired-but-open round as closed for sales.
   const roundEnded = round.status === 0 && countdown <= 0;
+  // Nothing to draw: the keeper (or anyone) rolls straight into the next round.
+  const emptyEnded = roundEnded && Number(round.ticketCount) === 0;
 
   return (
     <div>
@@ -164,7 +166,9 @@ export default function Home() {
                   }`}
                 />
                 <span className="text-sm" style={{ color: "var(--text-secondary)", fontWeight: 500 }}>
-                  {roundEnded
+                  {emptyEnded
+                    ? "Round ended · no tickets sold"
+                    : roundEnded
                     ? "Round ended — awaiting draw"
                     : round.status === 0
                     ? "Round Open"
@@ -193,7 +197,9 @@ export default function Home() {
                   Ticket sales closed
                 </p>
                 <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
-                  Waiting for node operators to draw this round.
+                  {emptyEnded
+                    ? "No tickets were sold, so there is nothing to draw. The next round opens automatically."
+                    : "Waiting for node operators to draw this round."}
                 </p>
               </div>
             )}
@@ -258,11 +264,12 @@ export default function Home() {
                 onBuy={handleBuy}
                 connected={connected}
                 ended={roundEnded}
+                empty={emptyEnded}
               />
             </div>
 
             {/* Round opening is permissionless: no operator is needed to continue. */}
-            {round.status === 2 && (
+            {(round.status === 2 || emptyEnded) && (
               <div className="mt-3 flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl border" style={{ background: "var(--surface-secondary)", borderColor: "var(--border-soft)" }}>
                 <p className="text-xs" style={{ color: "var(--text-muted)" }}>
                   Anyone can open round #{(round.roundId + 1n).toString()} — no operator required.
