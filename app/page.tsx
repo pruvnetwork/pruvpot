@@ -88,7 +88,7 @@ export default function Home() {
         ) : (
           <RoundCardSkeleton />
         )}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
           <Skeleton className="h-48" />
           <Skeleton className="h-48" />
         </div>
@@ -304,7 +304,7 @@ export default function Home() {
           </div>
 
           {/* Live feed + verify side by side on md+ */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
             <LiveFeed />
             <VerifyPanel
               roundId={round.roundId}

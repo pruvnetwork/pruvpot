@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useEffect, useState } from "react";
 import Link from "next/link";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useRoundDetail } from "@/hooks/useRoundDetail";
@@ -9,6 +9,7 @@ import { Skeleton } from "@/components/Skeleton";
 import ShareButton from "@/components/ShareButton";
 import VerifyPanel from "@/components/VerifyPanel";
 import { winnerShareLamports } from "@/lib/shares";
+import { getConnection } from "@/lib/rpc";
 
 function fmtSol(lamports: bigint) {
   return (Number(lamports) / 1e9).toFixed(4) + " SOL";
@@ -21,6 +22,12 @@ export default function RoundPage({ params }: { params: Promise<{ id: string }> 
   const [copied, setCopied] = useState<string | null>(null);
 
   const { detail: round, loading, notFound, error } = useRoundDetail(Number(id));
+
+  // status stays 0 (Open) on-chain until a draw; the slot tells whether sales ended.
+  const [slotNow, setSlotNow] = useState<bigint | null>(null);
+  useEffect(() => {
+    getConnection().getSlot("confirmed").then((s) => setSlotNow(BigInt(s))).catch(() => {});
+  }, [id]);
 
   function copy(text: string, key: string) {
     navigator.clipboard.writeText(text).catch(() => {});
@@ -53,8 +60,13 @@ export default function RoundPage({ params }: { params: Promise<{ id: string }> 
 
   const winnerPrizeLamports = round ? winnerShareLamports(round.prizePoolLamports, round.nodeShareBps, round.treasuryShareBps) : 0n;
   const visibleTickets = round ? (showAll ? round.tickets : round.tickets.slice(0, 12)) : [];
+  const salesEnded = !!round && round.status === 0 && slotNow !== null && slotNow >= round.endSlot;
+  const emptyEnded = salesEnded && round!.ticketCount === 0n;
+  const isLive = !!round && round.status === 0 && !salesEnded;
   const statusLabel = round
-    ? round.status === 0 ? "Open" : round.status === 1 ? "Committing" : "Closed"
+    ? emptyEnded ? "Ended · no tickets"
+      : salesEnded ? "Ended · awaiting draw"
+      : round.status === 0 ? "Open" : round.status === 1 ? "Committing" : "Closed"
     : "Loading…";
 
   return (
@@ -93,13 +105,13 @@ export default function RoundPage({ params }: { params: Promise<{ id: string }> 
           )}
           <span className={cn(
             "inline-flex items-center gap-1.5 text-xs border px-3 py-1.5 rounded-full",
-            round.status === 0 ? "bg-emerald-950/40 border-emerald-800 text-emerald-400" :
-            round.status === 1 ? "bg-yellow-950/40 border-yellow-800 text-yellow-400" :
+            isLive ? "bg-emerald-950/40 border-emerald-800 text-emerald-400" :
+            round.status === 1 || (salesEnded && !emptyEnded) ? "bg-yellow-950/40 border-yellow-800 text-yellow-400" :
             "bg-zinc-800 border-zinc-700 text-zinc-400"
           )}>
             <span className={cn("w-1.5 h-1.5 rounded-full",
-              round.status === 0 ? "bg-emerald-400 animate-pulse" :
-              round.status === 1 ? "bg-yellow-400 animate-pulse" : "bg-zinc-500"
+              isLive ? "bg-emerald-400 animate-pulse" :
+              round.status === 1 || (salesEnded && !emptyEnded) ? "bg-yellow-400 animate-pulse" : "bg-zinc-500"
             )} />
             {statusLabel}
           </span>
@@ -142,7 +154,11 @@ export default function RoundPage({ params }: { params: Promise<{ id: string }> 
         <div className="border border-zinc-800 bg-zinc-900/50 rounded-xl p-5">
           <p className="text-xs text-zinc-500 uppercase tracking-widest mb-2">Winner</p>
           <p className="text-sm text-zinc-500 italic">
-            {round.status === 0
+            {emptyEnded
+              ? "No tickets were sold, so there is nothing to draw. The next round opened instead."
+              : salesEnded
+              ? "Ticket sales closed. Waiting for the staked nodes to derive the winner."
+              : round.status === 0
               ? "Round still open — winner derived after round closes"
               : "Nodes voting on winner index…"}
           </p>
@@ -187,7 +203,9 @@ export default function RoundPage({ params }: { params: Promise<{ id: string }> 
       )}
 
       {/* Independent verification */}
-      <VerifyPanel roundId={round.roundId} endSlot={round.endSlot} ticketCount={round.ticketCount} defaultOpen />
+      {!emptyEnded && (
+        <VerifyPanel roundId={round.roundId} endSlot={round.endSlot} ticketCount={round.ticketCount} defaultOpen />
+      )}
 
       {/* Node Votes */}
       {round.votes.length > 0 && (
@@ -229,7 +247,7 @@ export default function RoundPage({ params }: { params: Promise<{ id: string }> 
         </div>
         <div className="divide-y divide-zinc-800/50">
           {visibleTickets.length === 0 && (
-            <p className="px-5 py-4 text-xs text-zinc-600">No tickets yet — be the first!</p>
+            <p className="px-5 py-4 text-xs text-zinc-600">{salesEnded ? "No tickets were sold in this round." : "No tickets yet — be the first!"}</p>
           )}
           {visibleTickets.map((t) => (
             <div

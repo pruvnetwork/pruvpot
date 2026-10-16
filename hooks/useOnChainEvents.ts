@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { Connection, PublicKey } from "@solana/web3.js";
-import { PROGRAM_ID } from "@/lib/lottery-client";
+import { PROGRAM_ID, CLOSED_ROUND_FILTER, getConfigPDA, getLotteryStatePDA } from "@/lib/lottery-client";
 import { rpcEndpoint, rpcWsEndpoint } from "@/lib/rpc";
 
 // Event discriminators from IDL (first 8 bytes of SHA256("event:<Name>"))
@@ -73,8 +73,40 @@ function parseLogsForEvents(logs: string[], ts: number): OnChainEvent[] {
 }
 
 // Backfill: fetch recent signatures and parse their logs
+// LotteryConfig.current_round_id: 8 disc + 2×32 + u64 + u8 + u64 + 2×u16 + u64 + u32.
+const CONFIG_CURRENT_ROUND_OFFSET = 105;
+
+/**
+ * State accounts of the open round and of the last finalized round. The keeper
+ * opens an empty round every ~10 minutes, so the program's latest signatures are
+ * almost all initialize_round; reading these two rounds' histories instead keeps
+ * tickets, votes and winners in the backfill.
+ */
+async function recentRoundAddresses(conn: Connection): Promise<PublicKey[]> {
+  const [cfg, closed] = await Promise.all([
+    conn.getAccountInfo(getConfigPDA()[0]),
+    conn.getProgramAccounts(PROGRAM_ID, {
+      filters: [CLOSED_ROUND_FILTER],
+      dataSlice: { offset: 8, length: 8 }, // round_id only
+    }),
+  ]);
+  const ids = new Set<bigint>();
+  if (cfg && cfg.data.length >= CONFIG_CURRENT_ROUND_OFFSET + 8) {
+    ids.add(cfg.data.readBigUInt64LE(CONFIG_CURRENT_ROUND_OFFSET));
+  }
+  const lastClosed = closed.reduce<bigint | null>((m, a) => {
+    const id = a.account.data.readBigUInt64LE(0);
+    return m === null || id > m ? id : m;
+  }, null);
+  if (lastClosed !== null) ids.add(lastClosed);
+  return [...ids].map((id) => getLotteryStatePDA(id)[0]);
+}
+
 async function backfill(conn: Connection, limit = 15): Promise<OnChainEvent[]> {
-  const sigs = await conn.getSignaturesForAddress(PROGRAM_ID, { limit });
+  const addrs = await recentRoundAddresses(conn);
+  const lists = await Promise.all(addrs.map((a) => conn.getSignaturesForAddress(a, { limit })));
+  const seen = new Set<string>();
+  const sigs = lists.flat().filter(({ signature }) => !seen.has(signature) && !!seen.add(signature));
   const events: OnChainEvent[] = [];
   await Promise.allSettled(
     sigs.map(async ({ signature, blockTime }) => {

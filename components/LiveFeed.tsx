@@ -15,11 +15,15 @@ function shortAddr(addr: string): string {
 }
 
 export default function LiveFeed() {
-  const events = useOnChainEvents(8);
+  const events = useOnChainEvents(30);
 
-  // Only show ticket purchases and round events in the feed
+  // Only show ticket purchases and round events in the feed. Empty rounds roll
+  // over every ~10 minutes, so keep just the newest "round opened" line.
+  const newestOpened = events.reduce<bigint | null>(
+    (m, e) => (e.type === "RoundOpened" && (m === null || e.roundId > m) ? e.roundId : m), null);
   const feedItems = [...events]
-    .filter(e => e.type === "TicketPurchased" || e.type === "RoundOpened" || e.type === "RoundFinalized")
+    .filter(e => e.type === "TicketPurchased" || e.type === "RoundFinalized"
+      || (e.type === "RoundOpened" && e.roundId === newestOpened))
     .reverse()
     .slice(0, 6);
 

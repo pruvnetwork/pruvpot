@@ -28,6 +28,22 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "PRUVPOT — Provably Fair on Solana",
   description: "Verifiable lottery powered by PRUV Protocol. No operator picks the winner; verify every round yourself.",
+  metadataBase: new URL("https://pruvpot.vercel.app"),
+  // Link previews (X, Telegram, Discord). public/og.png is 1200×630.
+  openGraph: {
+    title: "PRUVPOT — Provably Fair on Solana",
+    description: "No operator picks the winner. Recompute every round yourself from chain data.",
+    url: "/",
+    siteName: "PRUVPOT",
+    images: [{ url: "/og.png", width: 1200, height: 630, alt: "PRUVPOT: no operator picks the winner" }],
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "PRUVPOT — Provably Fair on Solana",
+    description: "No operator picks the winner. Recompute every round yourself from chain data.",
+    images: ["/og.png"],
+  },
 };
 
 export default function RootLayout({
