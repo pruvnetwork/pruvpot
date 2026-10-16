@@ -21,7 +21,7 @@ export default function ProfilePage({ params }: { params: Promise<{ wallet: stri
 
   if (notFound && !loading) {
     return (
-      <div className="max-w-3xl mx-auto px-4 py-16 text-center">
+      <div className="ops-dark max-w-3xl mx-auto px-4 py-16 text-center">
         <p className="text-zinc-500 text-lg">No on-chain activity found for this wallet.</p>
         <p className="font-mono text-xs text-zinc-700 mt-2 break-all">{decoded}</p>
         <Link href="/leaderboard" className="text-violet-400 text-sm mt-4 inline-block hover:underline">
@@ -32,7 +32,7 @@ export default function ProfilePage({ params }: { params: Promise<{ wallet: stri
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8 space-y-6">
+    <div className="ops-dark max-w-3xl mx-auto px-4 py-8 space-y-6">
       {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-zinc-500">
         <Link href="/leaderboard" className="hover:text-zinc-300 transition-colors">Leaderboard</Link>

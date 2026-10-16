@@ -16,6 +16,8 @@ export default function StatsPage() {
   const totalRounds = Number(round?.roundId ?? 0);
   const totalPrizeSOL = Number(totalPaidLamports) / 1e9;
   const totalTickets = history.reduce((s, r) => s + Number(r.ticketCount), 0);
+  // Shares are taken from the whole pool; totalPrizeSOL is already the winners' share.
+  const totalPoolSOL = history.reduce((s, r) => s + Number(r.prizePoolLamports), 0) / 1e9;
   const avgPoolSOL = totalRounds > 0 ? totalPrizeSOL / Math.max(history.length, 1) : 0;
 
   const recent = [...history].slice(0, 14);
@@ -64,7 +66,7 @@ export default function StatsPage() {
           {[...recent].reverse().map((r) => {
             const pct = (Number(r.prizePoolLamports) / maxPool) * 100;
             return (
-              <div key={r.roundId.toString()} className="flex-1 flex flex-col items-center gap-1 group">
+              <div key={r.roundId.toString()} className="flex-1 h-full flex flex-col justify-end items-center gap-1 group">
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-center pointer-events-none" style={{ color: "var(--text-secondary)" }}>
                   {(Number(r.prizePoolLamports) / 1e9).toFixed(3)}
                 </div>
@@ -88,7 +90,7 @@ export default function StatsPage() {
           {[...recent].reverse().map((r) => {
             const pct = (Number(r.ticketCount) / maxTickets) * 100;
             return (
-              <div key={r.roundId.toString()} className="flex-1 flex flex-col items-center gap-1 group">
+              <div key={r.roundId.toString()} className="flex-1 h-full flex flex-col justify-end items-center gap-1 group">
                 <div className="opacity-0 group-hover:opacity-100 transition-opacity text-xs" style={{ color: "var(--text-secondary)" }}>
                   {r.ticketCount.toString()}
                 </div>
@@ -159,9 +161,9 @@ export default function StatsPage() {
       <div className="rounded-xl p-5" style={{ background: "var(--surface-secondary)", border: "1px solid var(--border-default)", boxShadow: "var(--shadow-panel)" }}>
         <h2 className="text-sm font-semibold mb-4" style={{ color: "var(--text-primary)" }}>Protocol Revenue (All Time)</h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <RevenueCard label={`Treasury (${treasuryShareBps / 100}%)`} sol={totalPrizeSOL * treasuryShareBps / 10_000} color="violet" />
-          <RevenueCard label={`Node Operators (${nodeShareBps / 100}%)`} sol={totalPrizeSOL * nodeShareBps / 10_000} color="sky" />
-          <RevenueCard label={`Winners (${wPct}%)`} sol={totalPrizeSOL * wPct / 100} color="emerald" />
+          <RevenueCard label={`Treasury (${treasuryShareBps / 100}%)`} sol={totalPoolSOL * treasuryShareBps / 10_000} color="violet" />
+          <RevenueCard label={`Node Operators (${nodeShareBps / 100}%)`} sol={totalPoolSOL * nodeShareBps / 10_000} color="sky" />
+          <RevenueCard label={`Winners (${wPct}%)`} sol={totalPoolSOL * wPct / 100} color="emerald" />
         </div>
       </div>
       </>}
