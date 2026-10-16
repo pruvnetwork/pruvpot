@@ -6,7 +6,7 @@ import { winnerShareLamports } from "@/lib/shares";
 import { getConnection } from "@/lib/rpc";
 import { Program, AnchorProvider } from "@coral-xyz/anchor";
 import IDL from "@/lib/idl/pruv_lottery.json";
-import { PROGRAM_ID, getConfigPDA, u64LE } from "@/lib/lottery-client";
+import { PROGRAM_ID, getConfigPDA, CLOSED_ROUND_FILTER } from "@/lib/lottery-client";
 
 const REFRESH_MS = 60_000;
 
@@ -73,24 +73,12 @@ export function useLeaderboard(): LeaderboardState {
 
         // Fetch all finalized rounds to get winner data
         if (currentRoundId > 0) {
-          const roundIds = Array.from({ length: currentRoundId }, (_, i) => BigInt(i + 1));
-          const results = await Promise.allSettled(
-            roundIds.map(async (id) => {
-              const [statePDA] = PublicKey.findProgramAddressSync(
-                [Buffer.from("lottery"), u64LE(id)],
-                PROGRAM_ID
-              );
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              return (program.account as any).lotteryState.fetch(statePDA);
-            })
-          );
+          /* eslint-disable @typescript-eslint/no-explicit-any */
+          const closed: { account: any }[] =
+            await (program.account as any).lotteryState.all([CLOSED_ROUND_FILTER]);
+          /* eslint-enable @typescript-eslint/no-explicit-any */
 
-          for (const r of results) {
-            if (r.status !== "fulfilled") continue;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const s: any = r.value;
-            if (Number(s.status) !== 2) continue; // only finalized
-
+          for (const { account: s } of closed) {
             const winner: PublicKey = s.winner;
             if (winner.equals(PublicKey.default)) continue;
 

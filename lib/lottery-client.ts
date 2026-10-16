@@ -217,3 +217,11 @@ export async function exitNode(wallet: AnchorWallet, connection: Connection): Pr
     .accounts({ nodeRecord, registry, nodeOperator: wallet.publicKey })
     .rpc();
 }
+
+/**
+ * `getProgramAccounts` filter for finalized rounds: LotteryState.status (u8 at
+ * offset 8 disc + 5×u64 = 48) equal to 2. "3" is base58 for the byte 0x02.
+ * One query instead of one fetch per round id: the keeper opens a new empty
+ * round every ~10 minutes, so per-id fetching grows without bound.
+ */
+export const CLOSED_ROUND_FILTER = { memcmp: { offset: 48, bytes: "3" } };

@@ -6,7 +6,7 @@ import { winnerShareLamports } from "@/lib/shares";
 import { getConnection } from "@/lib/rpc";
 import { Program, AnchorProvider } from "@coral-xyz/anchor";
 import IDL from "@/lib/idl/pruv_lottery.json";
-import { PROGRAM_ID, getConfigPDA, u64LE } from "@/lib/lottery-client";
+import { getConfigPDA, CLOSED_ROUND_FILTER } from "@/lib/lottery-client";
 import type { RoundHistory } from "@/lib/types";
 
 const REFRESH_MS = 30_000;
@@ -57,28 +57,15 @@ export function useRoundHistory(): RoundHistoryState {
         }
 
         // Fetch all rounds in parallel
-        const roundIds = Array.from({ length: currentRoundId }, (_, i) => i + 1);
-        const results = await Promise.allSettled(
-          roundIds.map(async (id) => {
-            const idBig = BigInt(id);
-            const [statePDA] = PublicKey.findProgramAddressSync(
-              [Buffer.from("lottery"), u64LE(idBig)],
-              PROGRAM_ID
-            );
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            return (program.account as any).lotteryState.fetch(statePDA);
-          })
-        );
+        /* eslint-disable @typescript-eslint/no-explicit-any */
+        const closed: { publicKey: PublicKey; account: any }[] =
+          await (program.account as any).lotteryState.all([CLOSED_ROUND_FILTER]);
+        /* eslint-enable @typescript-eslint/no-explicit-any */
 
         const history: RoundHistory[] = [];
         let totalPaidLamports = 0n;
 
-        for (let i = 0; i < results.length; i++) {
-          const r = results[i];
-          if (r.status !== "fulfilled") continue;
-          const s = r.value;
-          if (Number(s.status) !== 2) continue; // only finalized
-
+        for (const { publicKey, account: s } of closed) {
           const ticketCount = BigInt(s.ticketCount.toString());
           const winnerKey: PublicKey = s.winner;
           const isZero = winnerKey.equals(PublicKey.default);
@@ -92,8 +79,7 @@ export function useRoundHistory(): RoundHistoryState {
             winner: isZero ? "—" : winnerKey.toBase58(),
             prizePoolLamports,
             ticketCount,
-            closedAt: 0,
-            txSig: "",
+            stateAddress: publicKey.toBase58(),
           });
 
           totalPaidLamports += winnerShareLamports(prizePoolLamports, nodeBps, treasuryBps);

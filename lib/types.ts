@@ -42,6 +42,6 @@ export interface RoundHistory {
   winner: string;
   prizePoolLamports: bigint;
   ticketCount: bigint;
-  closedAt: number;
-  txSig: string;
+  /** LotteryState account address (Explorer link). */
+  stateAddress: string;
 }

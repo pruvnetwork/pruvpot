@@ -36,7 +36,7 @@ export default function RoundHistory({ history }: Props) {
               {r.ticketCount.toString()} tkts
             </span>
             <a
-              href={`https://explorer.solana.com/tx/${r.txSig}?cluster=devnet`}
+              href={`https://explorer.solana.com/address/${r.stateAddress}?cluster=devnet`}
               target="_blank"
               rel="noopener noreferrer"
               style={{ color: "var(--blue-primary)" }}
