@@ -14,7 +14,7 @@ import { getLotteryProgram, PROGRAM_ID, getConfigPDA, getLotteryStatePDA, u64LE 
 import IDL from "@/lib/idl/pruv_lottery.json";
 
 import { getConnection } from "@/lib/rpc";
-import { fetchNodeRecord, registerNode, exitNode, MIN_NODE_STAKE_LAMPORTS, type NodeRecordInfo } from "@/lib/lottery-client";
+import { fetchNodeRecord, fetchExitRequest, registerNode, requestExit, exitNode, MIN_NODE_STAKE_LAMPORTS, UNBONDING_SLOTS, type NodeRecordInfo } from "@/lib/lottery-client";
 import { useNodeRegistry } from "@/hooks/useNodeRegistry";
 
 function hasWinnerShare(e: unknown): e is { winnerShare: bigint | string | number } {
@@ -87,6 +87,8 @@ export default function OperatorPage() {
   const [nodeBalance, setNodeBalance] = useState<bigint>(0n);
   const [record, setRecord] = useState<NodeRecordInfo | null | undefined>(undefined);
   const [busy, setBusy] = useState(false);
+  const [exitSlot, setExitSlot] = useState<bigint | null>(null); // slot of a pending request_exit
+  const [slotNow, setSlotNow] = useState<bigint | null>(null);
   const { registry } = useNodeRegistry();
 
   const isOperator = !!record?.active;
@@ -97,7 +99,11 @@ export default function OperatorPage() {
     if (!publicKey) return;
     let cancelled = false;
     const conn = getConnection();
-    const load = () => fetchNodeRecord(conn, publicKey).then(r => { if (!cancelled) setRecord(r); });
+    const load = () => {
+      fetchNodeRecord(conn, publicKey).then(r => { if (!cancelled) setRecord(r); });
+      fetchExitRequest(conn, publicKey).then(x => { if (!cancelled) setExitSlot(x); });
+      conn.getSlot("confirmed").then(s => { if (!cancelled) setSlotNow(BigInt(s)); }).catch(() => {});
+    };
     load();
     const id = setInterval(load, 15_000);
     return () => { cancelled = true; clearInterval(id); };
@@ -115,6 +121,19 @@ export default function OperatorPage() {
     } finally { setBusy(false); }
   }
 
+  async function handleRequestExit() {
+    if (!anchorWallet || !publicKey) return;
+    setBusy(true);
+    try {
+      const sig = await requestExit(anchorWallet, connection);
+      toast(`Leaving · stake unlocks in ~1 h · ${sig.slice(0, 8)}…`, "success");
+      setRecord(await fetchNodeRecord(connection, publicKey));
+      setExitSlot(await fetchExitRequest(connection, publicKey));
+    } catch (e) {
+      toast(e instanceof Error ? e.message.slice(0, 100) : "request_exit failed", "error");
+    } finally { setBusy(false); }
+  }
+
   async function handleExit() {
     if (!anchorWallet || !publicKey) return;
     setBusy(true);
@@ -122,10 +141,14 @@ export default function OperatorPage() {
       const sig = await exitNode(anchorWallet, connection);
       toast(`Exited · stake returned · ${sig.slice(0, 8)}…`, "success");
       setRecord(null);
+      setExitSlot(null);
     } catch (e) {
       toast(e instanceof Error ? e.message.slice(0, 100) : "exit_node failed", "error");
     } finally { setBusy(false); }
   }
+
+  const exitAfter = exitSlot !== null ? exitSlot + UNBONDING_SLOTS : null;
+  const canExitNow = exitAfter !== null && slotNow !== null && slotNow >= exitAfter;
 
   // Check if already voted for current round
   useEffect(() => {
@@ -442,11 +465,25 @@ export default function OperatorPage() {
               <Row label="Votes cast" value={record ? record.votesCast.toString() : "—"} />
               <Row label="Registry" value={registry ? `${registry.active} active` : "—"} />
             </div>
-            {record?.active && (
-              <button onClick={handleExit} disabled={busy || !anchorWallet}
+            {record && exitSlot === null && (
+              <button onClick={handleRequestExit} disabled={busy || !anchorWallet}
                 className="w-full text-xs py-2 rounded-lg border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500 disabled:opacity-50">
-                {busy ? "Sending…" : "exit_node · return stake"}
+                {busy ? "Sending…" : "request_exit · stake unlocks after ~1 h"}
               </button>
+            )}
+            {record && exitAfter !== null && (
+              <div className="space-y-1">
+                <button onClick={handleExit} disabled={busy || !anchorWallet || !canExitNow}
+                  className="w-full text-xs py-2 rounded-lg border border-zinc-700 text-zinc-400 hover:text-white hover:border-zinc-500 disabled:opacity-50">
+                  {busy ? "Sending…" : "exit_node · return stake"}
+                </button>
+                {!canExitNow && (
+                  <p className="text-[11px] text-zinc-500">
+                    Unbonding: stake stays slashable until slot #{exitAfter.toLocaleString()}
+                    {slotNow !== null && exitAfter > slotNow ? ` (~${Math.ceil(Number(exitAfter - slotNow) * 0.4 / 60)} min)` : ""}.
+                  </p>
+                )}
+              </div>
             )}
           </div>
 

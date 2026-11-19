@@ -1,6 +1,7 @@
 "use client";
 
 import { use, useEffect, useState } from "react";
+import { fetchRoundReschedules, type RoundReschedulesInfo } from "@/lib/lottery-client";
 import Link from "next/link";
 import { useWallet } from "@solana/wallet-adapter-react";
 import { useRoundDetail } from "@/hooks/useRoundDetail";
@@ -27,6 +28,12 @@ export default function RoundPage({ params }: { params: Promise<{ id: string }> 
   const [slotNow, setSlotNow] = useState<bigint | null>(null);
   useEffect(() => {
     getConnection().getSlot("confirmed").then((s) => setSlotNow(BigInt(s))).catch(() => {});
+  }, [id]);
+
+  // Re-draws: each missed window is counted on-chain and slashed into a pot for the winner.
+  const [redraws, setRedraws] = useState<RoundReschedulesInfo | null>(null);
+  useEffect(() => {
+    fetchRoundReschedules(getConnection(), BigInt(id)).then(setRedraws).catch(() => {});
   }, [id]);
 
   function copy(text: string, key: string) {
@@ -125,6 +132,14 @@ export default function RoundPage({ params }: { params: Promise<{ id: string }> 
         <StatCard label="Tickets Sold" value={round.ticketCount.toString()} />
         <StatCard label="End Slot"     value={`#${round.endSlot.toLocaleString()}`} mono />
       </div>
+
+      {/* Re-draws (only shown when a window was missed) */}
+      {redraws && redraws.count > 0 && (
+        <div className="border border-amber-900/60 bg-amber-950/20 rounded-xl px-4 py-3 text-sm text-amber-300">
+          Draw window missed {redraws.count}× and moved. Every node that owed the vote can be slashed 10%;
+          {" "}{fmtSol(redraws.penaltyLamports)} penalty so far, {fmtSol(redraws.paidLamports)} paid to the winner.
+        </div>
+      )}
 
       {/* Winner */}
       {round.winner ? (

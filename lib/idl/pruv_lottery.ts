@@ -398,11 +398,93 @@ export type PruvLottery = {
       ]
     },
     {
+      "name": "claimPenaltyPot",
+      "docs": [
+        "Permissionless. Once the round is closed, pays everything in the round's",
+        "penalty pot (above rent) to the winner. Can be called again if more",
+        "slashes arrive later."
+      ],
+      "discriminator": [
+        179,
+        178,
+        97,
+        162,
+        26,
+        46,
+        114,
+        214
+      ],
+      "accounts": [
+        {
+          "name": "lotteryState",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "roundId"
+              }
+            ]
+          }
+        },
+        {
+          "name": "reschedules",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  115,
+                  99,
+                  104,
+                  101,
+                  100,
+                  117,
+                  108,
+                  101,
+                  115
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "roundId"
+              }
+            ]
+          }
+        },
+        {
+          "name": "winnerWallet",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "roundId",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "exitNode",
       "docs": [
-        "Leave the registry. The record is closed and its full balance (stake +",
-        "rent) is returned to the operator. Prize claims for past votes remain",
-        "possible: they are keyed by the DrawVote accounts, not by this record."
+        "Step 2 of leaving, `UNBONDING_SLOTS` after `request_exit`. The record is",
+        "closed and its full balance (stake + rent) is returned to the operator.",
+        "Prize claims for past votes remain possible: they are keyed by the DrawVote",
+        "accounts, not by this record."
       ],
       "discriminator": [
         127,
@@ -458,6 +540,35 @@ export type PruvLottery = {
                   114,
                   121
                 ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "exitRequest",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  120,
+                  105,
+                  116,
+                  95,
+                  114,
+                  101,
+                  113,
+                  117,
+                  101,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "nodeOperator"
               }
             ]
           }
@@ -974,13 +1085,124 @@ export type PruvLottery = {
       ]
     },
     {
+      "name": "requestExit",
+      "docs": [
+        "Step 1 of leaving: the node leaves the active set now (it owes no vote for",
+        "any window ending after this slot) but its stake stays slashable for",
+        "windows it already owed until `exit_node` is allowed."
+      ],
+      "discriminator": [
+        121,
+        186,
+        203,
+        74,
+        138,
+        218,
+        135,
+        151
+      ],
+      "accounts": [
+        {
+          "name": "nodeRecord",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  111,
+                  100,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "nodeOperator"
+              }
+            ]
+          }
+        },
+        {
+          "name": "registry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  111,
+                  100,
+                  101,
+                  95,
+                  114,
+                  101,
+                  103,
+                  105,
+                  115,
+                  116,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "exitRequest",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  120,
+                  105,
+                  116,
+                  95,
+                  114,
+                  101,
+                  113,
+                  117,
+                  101,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "nodeOperator"
+              }
+            ]
+          }
+        },
+        {
+          "name": "nodeOperator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "rescheduleDraw",
       "docs": [
         "Permissionless recovery. If no node voted while the seed window was still",
         "inside the SlotHashes sysvar (~512 slots), the seed can no longer be read",
         "on-chain. Anyone may then move the window to the current slot. Sales stay",
         "closed (buy_ticket requires `slot < end_slot`), the ticket set is unchanged,",
-        "and the new window's hashes do not exist yet when this runs."
+        "and the new window's hashes do not exist yet when this runs.",
+        "",
+        "The missed window is stored as `MissedWindow[round, attempt]` (attempt = the",
+        "round's reschedule count before this call), so every node that owed a vote",
+        "for it can be slashed with `slash_missed_window`. Empty rounds have nothing",
+        "to draw and cannot be rescheduled."
       ],
       "discriminator": [
         4,
@@ -1022,14 +1244,515 @@ export type PruvLottery = {
           "address": "SysvarS1otHashes111111111111111111111111111"
         },
         {
+          "name": "reschedules",
+          "docs": [
+            "Per-round reschedule counter and penalty pot."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  115,
+                  99,
+                  104,
+                  101,
+                  100,
+                  117,
+                  108,
+                  101,
+                  115
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "roundId"
+              }
+            ]
+          }
+        },
+        {
+          "name": "missedWindow",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  105,
+                  115,
+                  115,
+                  101,
+                  100
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "roundId"
+              },
+              {
+                "kind": "arg",
+                "path": "attempt"
+              }
+            ]
+          }
+        },
+        {
           "name": "caller",
+          "writable": true,
           "signer": true
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
         {
           "name": "roundId",
           "type": "u64"
+        },
+        {
+          "name": "attempt",
+          "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "slashAbsentNode",
+      "docs": [
+        "Permissionless liveness slash. Succeeds only if the node was registered before",
+        "the round's `end_slot`, the vote deadline has passed, and the node's DrawVote",
+        "account for this round does not exist. Takes `SLASH_BPS` of the stake to the",
+        "treasury; a node whose stake falls below the minimum leaves the active set.",
+        "The SlashRecord PDA makes it once per (round, node)."
+      ],
+      "discriminator": [
+        69,
+        124,
+        97,
+        164,
+        222,
+        223,
+        5,
+        209
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "registry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  111,
+                  100,
+                  101,
+                  95,
+                  114,
+                  101,
+                  103,
+                  105,
+                  115,
+                  116,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "lotteryState",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "roundId"
+              }
+            ]
+          }
+        },
+        {
+          "name": "nodeRecord",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  111,
+                  100,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "node_record.operator",
+                "account": "nodeRecord"
+              }
+            ]
+          }
+        },
+        {
+          "name": "drawVote",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  114,
+                  97,
+                  119,
+                  95,
+                  118,
+                  111,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "roundId"
+              },
+              {
+                "kind": "account",
+                "path": "node_record.operator",
+                "account": "nodeRecord"
+              }
+            ]
+          }
+        },
+        {
+          "name": "exitRequest",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  120,
+                  105,
+                  116,
+                  95,
+                  114,
+                  101,
+                  113,
+                  117,
+                  101,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "node_record.operator",
+                "account": "nodeRecord"
+              }
+            ]
+          }
+        },
+        {
+          "name": "slashRecord",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  108,
+                  97,
+                  115,
+                  104
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "roundId"
+              },
+              {
+                "kind": "account",
+                "path": "node_record.operator",
+                "account": "nodeRecord"
+              }
+            ]
+          }
+        },
+        {
+          "name": "treasury",
+          "writable": true
+        },
+        {
+          "name": "caller",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "roundId",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "slashMissedWindow",
+      "docs": [
+        "Permissionless re-draw penalty. A `MissedWindow` exists only if no node voted",
+        "while that window was readable (any accepted vote moves the round out of",
+        "Open, and `reschedule_draw` requires Open). Every node that owed a vote for",
+        "it loses `SLASH_BPS` of its stake to the round's penalty pot, which goes to",
+        "the winner (`claim_penalty_pot`). Once per (round, attempt, node)."
+      ],
+      "discriminator": [
+        163,
+        224,
+        4,
+        223,
+        190,
+        154,
+        78,
+        176
+      ],
+      "accounts": [
+        {
+          "name": "registry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  111,
+                  100,
+                  101,
+                  95,
+                  114,
+                  101,
+                  103,
+                  105,
+                  115,
+                  116,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "missedWindow",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  105,
+                  115,
+                  115,
+                  101,
+                  100
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "roundId"
+              },
+              {
+                "kind": "arg",
+                "path": "attempt"
+              }
+            ]
+          }
+        },
+        {
+          "name": "reschedules",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  115,
+                  99,
+                  104,
+                  101,
+                  100,
+                  117,
+                  108,
+                  101,
+                  115
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "roundId"
+              }
+            ]
+          }
+        },
+        {
+          "name": "nodeRecord",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  111,
+                  100,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "node_record.operator",
+                "account": "nodeRecord"
+              }
+            ]
+          }
+        },
+        {
+          "name": "exitRequest",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  120,
+                  105,
+                  116,
+                  95,
+                  114,
+                  101,
+                  113,
+                  117,
+                  101,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "node_record.operator",
+                "account": "nodeRecord"
+              }
+            ]
+          }
+        },
+        {
+          "name": "slashRecord",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  105,
+                  115,
+                  115,
+                  101,
+                  100,
+                  95,
+                  115,
+                  108,
+                  97,
+                  115,
+                  104
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "roundId"
+              },
+              {
+                "kind": "arg",
+                "path": "attempt"
+              },
+              {
+                "kind": "account",
+                "path": "node_record.operator",
+                "account": "nodeRecord"
+              }
+            ]
+          }
+        },
+        {
+          "name": "caller",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "roundId",
+          "type": "u64"
+        },
+        {
+          "name": "attempt",
+          "type": "u32"
         }
       ]
     },
@@ -1163,6 +1886,19 @@ export type PruvLottery = {
       ]
     },
     {
+      "name": "exitRequest",
+      "discriminator": [
+        90,
+        22,
+        188,
+        209,
+        173,
+        217,
+        62,
+        9
+      ]
+    },
+    {
       "name": "lotteryConfig",
       "discriminator": [
         174,
@@ -1202,6 +1938,19 @@ export type PruvLottery = {
       ]
     },
     {
+      "name": "missedWindow",
+      "discriminator": [
+        182,
+        200,
+        127,
+        167,
+        66,
+        192,
+        162,
+        233
+      ]
+    },
+    {
       "name": "nodePrizePool",
       "discriminator": [
         3,
@@ -1238,6 +1987,32 @@ export type PruvLottery = {
         185,
         177,
         45
+      ]
+    },
+    {
+      "name": "roundReschedules",
+      "discriminator": [
+        47,
+        212,
+        228,
+        114,
+        169,
+        24,
+        65,
+        10
+      ]
+    },
+    {
+      "name": "slashRecord",
+      "discriminator": [
+        107,
+        134,
+        175,
+        65,
+        150,
+        130,
+        94,
+        68
       ]
     },
     {
@@ -1308,6 +2083,45 @@ export type PruvLottery = {
       ]
     },
     {
+      "name": "exitRequested",
+      "discriminator": [
+        92,
+        125,
+        6,
+        23,
+        233,
+        196,
+        149,
+        70
+      ]
+    },
+    {
+      "name": "lateVoteCast",
+      "discriminator": [
+        171,
+        152,
+        213,
+        218,
+        197,
+        106,
+        101,
+        39
+      ]
+    },
+    {
+      "name": "missedWindowSlashed",
+      "discriminator": [
+        43,
+        221,
+        237,
+        52,
+        215,
+        122,
+        50,
+        16
+      ]
+    },
+    {
       "name": "nodeExited",
       "discriminator": [
         80,
@@ -1344,6 +2158,32 @@ export type PruvLottery = {
         55,
         157,
         195
+      ]
+    },
+    {
+      "name": "nodeSlashed",
+      "discriminator": [
+        195,
+        114,
+        214,
+        16,
+        173,
+        73,
+        177,
+        87
+      ]
+    },
+    {
+      "name": "penaltyPotPaid",
+      "discriminator": [
+        131,
+        242,
+        18,
+        61,
+        158,
+        196,
+        27,
+        29
       ]
     },
     {
@@ -1396,6 +2236,19 @@ export type PruvLottery = {
         145,
         13,
         71
+      ]
+    },
+    {
+      "name": "windowMissed",
+      "discriminator": [
+        104,
+        122,
+        179,
+        74,
+        98,
+        63,
+        251,
+        119
       ]
     }
   ],
@@ -1514,6 +2367,41 @@ export type PruvLottery = {
       "code": 6022,
       "name": "poseidonFailed",
       "msg": "Poseidon syscall failed"
+    },
+    {
+      "code": 6023,
+      "name": "voteWindowOpen",
+      "msg": "Vote deadline not passed yet"
+    },
+    {
+      "code": 6024,
+      "name": "nodeNotDue",
+      "msg": "Node owed no vote for this window (registered later or already leaving)"
+    },
+    {
+      "code": 6025,
+      "name": "nodeVoted",
+      "msg": "Node voted in this round"
+    },
+    {
+      "code": 6026,
+      "name": "invalidAttempt",
+      "msg": "attempt must equal the round's reschedule count"
+    },
+    {
+      "code": 6027,
+      "name": "roundNotClosed",
+      "msg": "Round is not closed yet"
+    },
+    {
+      "code": 6028,
+      "name": "penaltyPotEmpty",
+      "msg": "Penalty pot is empty"
+    },
+    {
+      "code": 6029,
+      "name": "unbondingNotOver",
+      "msg": "Unbonding period after request_exit not over"
     }
   ],
   "types": [
@@ -1610,6 +2498,73 @@ export type PruvLottery = {
           {
             "name": "voteCount",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "exitRequest",
+      "docs": [
+        "Exists between `request_exit` and `exit_node`."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "operator",
+            "type": "pubkey"
+          },
+          {
+            "name": "requestedSlot",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "exitRequested",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "operator",
+            "type": "pubkey"
+          },
+          {
+            "name": "requestedSlot",
+            "type": "u64"
+          },
+          {
+            "name": "exitAfterSlot",
+            "type": "u64"
+          },
+          {
+            "name": "activeNodes",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "lateVoteCast",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "roundId",
+            "type": "u64"
+          },
+          {
+            "name": "nodePubkey",
+            "type": "pubkey"
+          },
+          {
+            "name": "winnerIndex",
+            "type": "u64"
           }
         ]
       }
@@ -1751,6 +2706,73 @@ export type PruvLottery = {
           {
             "name": "bump",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "missedWindow",
+      "docs": [
+        "One per rescheduled window: `end_slot` is the window nobody voted on."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "roundId",
+            "type": "u64"
+          },
+          {
+            "name": "attempt",
+            "type": "u32"
+          },
+          {
+            "name": "endSlot",
+            "type": "u64"
+          },
+          {
+            "name": "rescheduledAt",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "missedWindowSlashed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "roundId",
+            "type": "u64"
+          },
+          {
+            "name": "attempt",
+            "type": "u32"
+          },
+          {
+            "name": "operator",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "stakeLeft",
+            "type": "u64"
+          },
+          {
+            "name": "deactivated",
+            "type": "bool"
+          },
+          {
+            "name": "by",
+            "type": "pubkey"
           }
         ]
       }
@@ -1902,6 +2924,58 @@ export type PruvLottery = {
       }
     },
     {
+      "name": "nodeSlashed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "roundId",
+            "type": "u64"
+          },
+          {
+            "name": "operator",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "stakeLeft",
+            "type": "u64"
+          },
+          {
+            "name": "deactivated",
+            "type": "bool"
+          },
+          {
+            "name": "by",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "penaltyPotPaid",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "roundId",
+            "type": "u64"
+          },
+          {
+            "name": "winner",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
       "name": "roundFinalized",
       "type": {
         "kind": "struct",
@@ -1958,6 +3032,38 @@ export type PruvLottery = {
       }
     },
     {
+      "name": "roundReschedules",
+      "docs": [
+        "Per round: how many times the draw window was missed and moved, and the",
+        "penalty pot built from the nodes slashed for it (paid to the winner)."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "roundId",
+            "type": "u64"
+          },
+          {
+            "name": "count",
+            "type": "u32"
+          },
+          {
+            "name": "penaltyLamports",
+            "type": "u64"
+          },
+          {
+            "name": "paidLamports",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
       "name": "seedCommitted",
       "type": {
         "kind": "struct",
@@ -2000,6 +3106,37 @@ export type PruvLottery = {
                 32
               ]
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "slashRecord",
+      "docs": [
+        "One per (round, node) slash; its existence prevents a second slash for the same miss."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "roundId",
+            "type": "u64"
+          },
+          {
+            "name": "operator",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
           }
         ]
       }
@@ -2060,6 +3197,30 @@ export type PruvLottery = {
           {
             "name": "bump",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "windowMissed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "roundId",
+            "type": "u64"
+          },
+          {
+            "name": "attempt",
+            "type": "u32"
+          },
+          {
+            "name": "missedEndSlot",
+            "type": "u64"
+          },
+          {
+            "name": "rescheduleCount",
+            "type": "u32"
           }
         ]
       }

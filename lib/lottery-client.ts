@@ -207,15 +207,65 @@ export async function registerNode(wallet: AnchorWallet, connection: Connection,
     .rpc();
 }
 
-/** Leave the registry; stake and rent come back to the wallet. */
+/** Slots between request_exit and exit_node (~1 h); mirrors UNBONDING_SLOTS in pruv-lottery. */
+export const UNBONDING_SLOTS = 9_000n;
+
+export function getExitRequestPDA(operator: PublicKey): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync([Buffer.from("exit_request"), operator.toBuffer()], PROGRAM_ID);
+}
+
+/** Slot of the operator's pending request_exit, or null if none. */
+export async function fetchExitRequest(connection: Connection, operator: PublicKey): Promise<bigint | null> {
+  try {
+    const [pda] = getExitRequestPDA(operator);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const r: any = await (readProgram(connection).account as any).exitRequest.fetch(pda);
+    return BigInt(r.requestedSlot.toString());
+  } catch {
+    return null;
+  }
+}
+
+/** Step 1 of leaving: leave the active set now; the stake unlocks after UNBONDING_SLOTS. */
+export async function requestExit(wallet: AnchorWallet, connection: Connection): Promise<string> {
+  const program = getLotteryProgram(wallet, connection);
+  const [nodeRecord] = getNodeRecordPDA(wallet.publicKey);
+  const [registry] = getRegistryPDA();
+  const [exitRequest] = getExitRequestPDA(wallet.publicKey);
+  return program.methods
+    .requestExit()
+    .accountsPartial({ nodeRecord, registry, exitRequest, nodeOperator: wallet.publicKey, systemProgram: SystemProgram.programId })
+    .rpc();
+}
+
+/** Step 2 of leaving (after the unbonding period): stake and rent come back to the wallet. */
 export async function exitNode(wallet: AnchorWallet, connection: Connection): Promise<string> {
   const program = getLotteryProgram(wallet, connection);
   const [nodeRecord] = getNodeRecordPDA(wallet.publicKey);
   const [registry] = getRegistryPDA();
+  const [exitRequest] = getExitRequestPDA(wallet.publicKey);
   return program.methods
     .exitNode()
-    .accounts({ nodeRecord, registry, nodeOperator: wallet.publicKey })
+    .accountsPartial({ nodeRecord, registry, exitRequest, nodeOperator: wallet.publicKey })
     .rpc();
+}
+
+export interface RoundReschedulesInfo { count: number; penaltyLamports: bigint; paidLamports: bigint }
+
+/** How often a round's draw window was missed and moved, and the penalty pot built from it. */
+export async function fetchRoundReschedules(connection: Connection, roundId: bigint): Promise<RoundReschedulesInfo | null> {
+  try {
+    const [pda] = PublicKey.findProgramAddressSync([Buffer.from("reschedules"), u64LE(roundId)], PROGRAM_ID);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const r: any = await (readProgram(connection).account as any).roundReschedules.fetch(pda);
+    return {
+      count: Number(r.count),
+      penaltyLamports: BigInt(r.penaltyLamports.toString()),
+      paidLamports: BigInt(r.paidLamports.toString()),
+    };
+  } catch {
+    return null;
+  }
 }
 
 /**

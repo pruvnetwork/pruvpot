@@ -392,11 +392,93 @@
       ]
     },
     {
+      "name": "claim_penalty_pot",
+      "docs": [
+        "Permissionless. Once the round is closed, pays everything in the round's",
+        "penalty pot (above rent) to the winner. Can be called again if more",
+        "slashes arrive later."
+      ],
+      "discriminator": [
+        179,
+        178,
+        97,
+        162,
+        26,
+        46,
+        114,
+        214
+      ],
+      "accounts": [
+        {
+          "name": "lottery_state",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "round_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "reschedules",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  115,
+                  99,
+                  104,
+                  101,
+                  100,
+                  117,
+                  108,
+                  101,
+                  115
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "round_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "winner_wallet",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "round_id",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "exit_node",
       "docs": [
-        "Leave the registry. The record is closed and its full balance (stake +",
-        "rent) is returned to the operator. Prize claims for past votes remain",
-        "possible: they are keyed by the DrawVote accounts, not by this record."
+        "Step 2 of leaving, `UNBONDING_SLOTS` after `request_exit`. The record is",
+        "closed and its full balance (stake + rent) is returned to the operator.",
+        "Prize claims for past votes remain possible: they are keyed by the DrawVote",
+        "accounts, not by this record."
       ],
       "discriminator": [
         127,
@@ -452,6 +534,35 @@
                   114,
                   121
                 ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "exit_request",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  120,
+                  105,
+                  116,
+                  95,
+                  114,
+                  101,
+                  113,
+                  117,
+                  101,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "node_operator"
               }
             ]
           }
@@ -968,13 +1079,124 @@
       ]
     },
     {
+      "name": "request_exit",
+      "docs": [
+        "Step 1 of leaving: the node leaves the active set now (it owes no vote for",
+        "any window ending after this slot) but its stake stays slashable for",
+        "windows it already owed until `exit_node` is allowed."
+      ],
+      "discriminator": [
+        121,
+        186,
+        203,
+        74,
+        138,
+        218,
+        135,
+        151
+      ],
+      "accounts": [
+        {
+          "name": "node_record",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  111,
+                  100,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "node_operator"
+              }
+            ]
+          }
+        },
+        {
+          "name": "registry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  111,
+                  100,
+                  101,
+                  95,
+                  114,
+                  101,
+                  103,
+                  105,
+                  115,
+                  116,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "exit_request",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  120,
+                  105,
+                  116,
+                  95,
+                  114,
+                  101,
+                  113,
+                  117,
+                  101,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "node_operator"
+              }
+            ]
+          }
+        },
+        {
+          "name": "node_operator",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "reschedule_draw",
       "docs": [
         "Permissionless recovery. If no node voted while the seed window was still",
         "inside the SlotHashes sysvar (~512 slots), the seed can no longer be read",
         "on-chain. Anyone may then move the window to the current slot. Sales stay",
         "closed (buy_ticket requires `slot < end_slot`), the ticket set is unchanged,",
-        "and the new window's hashes do not exist yet when this runs."
+        "and the new window's hashes do not exist yet when this runs.",
+        "",
+        "The missed window is stored as `MissedWindow[round, attempt]` (attempt = the",
+        "round's reschedule count before this call), so every node that owed a vote",
+        "for it can be slashed with `slash_missed_window`. Empty rounds have nothing",
+        "to draw and cannot be rescheduled."
       ],
       "discriminator": [
         4,
@@ -1016,14 +1238,515 @@
           "address": "SysvarS1otHashes111111111111111111111111111"
         },
         {
+          "name": "reschedules",
+          "docs": [
+            "Per-round reschedule counter and penalty pot."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  115,
+                  99,
+                  104,
+                  101,
+                  100,
+                  117,
+                  108,
+                  101,
+                  115
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "round_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "missed_window",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  105,
+                  115,
+                  115,
+                  101,
+                  100
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "round_id"
+              },
+              {
+                "kind": "arg",
+                "path": "attempt"
+              }
+            ]
+          }
+        },
+        {
           "name": "caller",
+          "writable": true,
           "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
         }
       ],
       "args": [
         {
-          "name": "_round_id",
+          "name": "round_id",
           "type": "u64"
+        },
+        {
+          "name": "attempt",
+          "type": "u32"
+        }
+      ]
+    },
+    {
+      "name": "slash_absent_node",
+      "docs": [
+        "Permissionless liveness slash. Succeeds only if the node was registered before",
+        "the round's `end_slot`, the vote deadline has passed, and the node's DrawVote",
+        "account for this round does not exist. Takes `SLASH_BPS` of the stake to the",
+        "treasury; a node whose stake falls below the minimum leaves the active set.",
+        "The SlashRecord PDA makes it once per (round, node)."
+      ],
+      "discriminator": [
+        69,
+        124,
+        97,
+        164,
+        222,
+        223,
+        5,
+        209
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121,
+                  95,
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "registry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  111,
+                  100,
+                  101,
+                  95,
+                  114,
+                  101,
+                  103,
+                  105,
+                  115,
+                  116,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "lottery_state",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  108,
+                  111,
+                  116,
+                  116,
+                  101,
+                  114,
+                  121
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "round_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "node_record",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  111,
+                  100,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "node_record.operator",
+                "account": "NodeRecord"
+              }
+            ]
+          }
+        },
+        {
+          "name": "draw_vote",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  114,
+                  97,
+                  119,
+                  95,
+                  118,
+                  111,
+                  116,
+                  101
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "round_id"
+              },
+              {
+                "kind": "account",
+                "path": "node_record.operator",
+                "account": "NodeRecord"
+              }
+            ]
+          }
+        },
+        {
+          "name": "exit_request",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  120,
+                  105,
+                  116,
+                  95,
+                  114,
+                  101,
+                  113,
+                  117,
+                  101,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "node_record.operator",
+                "account": "NodeRecord"
+              }
+            ]
+          }
+        },
+        {
+          "name": "slash_record",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  115,
+                  108,
+                  97,
+                  115,
+                  104
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "round_id"
+              },
+              {
+                "kind": "account",
+                "path": "node_record.operator",
+                "account": "NodeRecord"
+              }
+            ]
+          }
+        },
+        {
+          "name": "treasury",
+          "writable": true
+        },
+        {
+          "name": "caller",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "round_id",
+          "type": "u64"
+        }
+      ]
+    },
+    {
+      "name": "slash_missed_window",
+      "docs": [
+        "Permissionless re-draw penalty. A `MissedWindow` exists only if no node voted",
+        "while that window was readable (any accepted vote moves the round out of",
+        "Open, and `reschedule_draw` requires Open). Every node that owed a vote for",
+        "it loses `SLASH_BPS` of its stake to the round's penalty pot, which goes to",
+        "the winner (`claim_penalty_pot`). Once per (round, attempt, node)."
+      ],
+      "discriminator": [
+        163,
+        224,
+        4,
+        223,
+        190,
+        154,
+        78,
+        176
+      ],
+      "accounts": [
+        {
+          "name": "registry",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  111,
+                  100,
+                  101,
+                  95,
+                  114,
+                  101,
+                  103,
+                  105,
+                  115,
+                  116,
+                  114,
+                  121
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "name": "missed_window",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  105,
+                  115,
+                  115,
+                  101,
+                  100
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "round_id"
+              },
+              {
+                "kind": "arg",
+                "path": "attempt"
+              }
+            ]
+          }
+        },
+        {
+          "name": "reschedules",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  114,
+                  101,
+                  115,
+                  99,
+                  104,
+                  101,
+                  100,
+                  117,
+                  108,
+                  101,
+                  115
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "round_id"
+              }
+            ]
+          }
+        },
+        {
+          "name": "node_record",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  110,
+                  111,
+                  100,
+                  101
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "node_record.operator",
+                "account": "NodeRecord"
+              }
+            ]
+          }
+        },
+        {
+          "name": "exit_request",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  101,
+                  120,
+                  105,
+                  116,
+                  95,
+                  114,
+                  101,
+                  113,
+                  117,
+                  101,
+                  115,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "node_record.operator",
+                "account": "NodeRecord"
+              }
+            ]
+          }
+        },
+        {
+          "name": "slash_record",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  109,
+                  105,
+                  115,
+                  115,
+                  101,
+                  100,
+                  95,
+                  115,
+                  108,
+                  97,
+                  115,
+                  104
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "round_id"
+              },
+              {
+                "kind": "arg",
+                "path": "attempt"
+              },
+              {
+                "kind": "account",
+                "path": "node_record.operator",
+                "account": "NodeRecord"
+              }
+            ]
+          }
+        },
+        {
+          "name": "caller",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "round_id",
+          "type": "u64"
+        },
+        {
+          "name": "attempt",
+          "type": "u32"
         }
       ]
     },
@@ -1157,6 +1880,19 @@
       ]
     },
     {
+      "name": "ExitRequest",
+      "discriminator": [
+        90,
+        22,
+        188,
+        209,
+        173,
+        217,
+        62,
+        9
+      ]
+    },
+    {
       "name": "LotteryConfig",
       "discriminator": [
         174,
@@ -1196,6 +1932,19 @@
       ]
     },
     {
+      "name": "MissedWindow",
+      "discriminator": [
+        182,
+        200,
+        127,
+        167,
+        66,
+        192,
+        162,
+        233
+      ]
+    },
+    {
       "name": "NodePrizePool",
       "discriminator": [
         3,
@@ -1232,6 +1981,32 @@
         185,
         177,
         45
+      ]
+    },
+    {
+      "name": "RoundReschedules",
+      "discriminator": [
+        47,
+        212,
+        228,
+        114,
+        169,
+        24,
+        65,
+        10
+      ]
+    },
+    {
+      "name": "SlashRecord",
+      "discriminator": [
+        107,
+        134,
+        175,
+        65,
+        150,
+        130,
+        94,
+        68
       ]
     },
     {
@@ -1302,6 +2077,45 @@
       ]
     },
     {
+      "name": "ExitRequested",
+      "discriminator": [
+        92,
+        125,
+        6,
+        23,
+        233,
+        196,
+        149,
+        70
+      ]
+    },
+    {
+      "name": "LateVoteCast",
+      "discriminator": [
+        171,
+        152,
+        213,
+        218,
+        197,
+        106,
+        101,
+        39
+      ]
+    },
+    {
+      "name": "MissedWindowSlashed",
+      "discriminator": [
+        43,
+        221,
+        237,
+        52,
+        215,
+        122,
+        50,
+        16
+      ]
+    },
+    {
       "name": "NodeExited",
       "discriminator": [
         80,
@@ -1338,6 +2152,32 @@
         55,
         157,
         195
+      ]
+    },
+    {
+      "name": "NodeSlashed",
+      "discriminator": [
+        195,
+        114,
+        214,
+        16,
+        173,
+        73,
+        177,
+        87
+      ]
+    },
+    {
+      "name": "PenaltyPotPaid",
+      "discriminator": [
+        131,
+        242,
+        18,
+        61,
+        158,
+        196,
+        27,
+        29
       ]
     },
     {
@@ -1390,6 +2230,19 @@
         145,
         13,
         71
+      ]
+    },
+    {
+      "name": "WindowMissed",
+      "discriminator": [
+        104,
+        122,
+        179,
+        74,
+        98,
+        63,
+        251,
+        119
       ]
     }
   ],
@@ -1508,6 +2361,41 @@
       "code": 6022,
       "name": "PoseidonFailed",
       "msg": "Poseidon syscall failed"
+    },
+    {
+      "code": 6023,
+      "name": "VoteWindowOpen",
+      "msg": "Vote deadline not passed yet"
+    },
+    {
+      "code": 6024,
+      "name": "NodeNotDue",
+      "msg": "Node owed no vote for this window (registered later or already leaving)"
+    },
+    {
+      "code": 6025,
+      "name": "NodeVoted",
+      "msg": "Node voted in this round"
+    },
+    {
+      "code": 6026,
+      "name": "InvalidAttempt",
+      "msg": "attempt must equal the round's reschedule count"
+    },
+    {
+      "code": 6027,
+      "name": "RoundNotClosed",
+      "msg": "Round is not closed yet"
+    },
+    {
+      "code": 6028,
+      "name": "PenaltyPotEmpty",
+      "msg": "Penalty pot is empty"
+    },
+    {
+      "code": 6029,
+      "name": "UnbondingNotOver",
+      "msg": "Unbonding period after request_exit not over"
     }
   ],
   "types": [
@@ -1604,6 +2492,73 @@
           {
             "name": "vote_count",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ExitRequest",
+      "docs": [
+        "Exists between `request_exit` and `exit_node`."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "operator",
+            "type": "pubkey"
+          },
+          {
+            "name": "requested_slot",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ExitRequested",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "operator",
+            "type": "pubkey"
+          },
+          {
+            "name": "requested_slot",
+            "type": "u64"
+          },
+          {
+            "name": "exit_after_slot",
+            "type": "u64"
+          },
+          {
+            "name": "active_nodes",
+            "type": "u32"
+          }
+        ]
+      }
+    },
+    {
+      "name": "LateVoteCast",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "round_id",
+            "type": "u64"
+          },
+          {
+            "name": "node_pubkey",
+            "type": "pubkey"
+          },
+          {
+            "name": "winner_index",
+            "type": "u64"
           }
         ]
       }
@@ -1745,6 +2700,73 @@
           {
             "name": "bump",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MissedWindow",
+      "docs": [
+        "One per rescheduled window: `end_slot` is the window nobody voted on."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "round_id",
+            "type": "u64"
+          },
+          {
+            "name": "attempt",
+            "type": "u32"
+          },
+          {
+            "name": "end_slot",
+            "type": "u64"
+          },
+          {
+            "name": "rescheduled_at",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "MissedWindowSlashed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "round_id",
+            "type": "u64"
+          },
+          {
+            "name": "attempt",
+            "type": "u32"
+          },
+          {
+            "name": "operator",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "stake_left",
+            "type": "u64"
+          },
+          {
+            "name": "deactivated",
+            "type": "bool"
+          },
+          {
+            "name": "by",
+            "type": "pubkey"
           }
         ]
       }
@@ -1896,6 +2918,58 @@
       }
     },
     {
+      "name": "NodeSlashed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "round_id",
+            "type": "u64"
+          },
+          {
+            "name": "operator",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "stake_left",
+            "type": "u64"
+          },
+          {
+            "name": "deactivated",
+            "type": "bool"
+          },
+          {
+            "name": "by",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "PenaltyPotPaid",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "round_id",
+            "type": "u64"
+          },
+          {
+            "name": "winner",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          }
+        ]
+      }
+    },
+    {
       "name": "RoundFinalized",
       "type": {
         "kind": "struct",
@@ -1952,6 +3026,38 @@
       }
     },
     {
+      "name": "RoundReschedules",
+      "docs": [
+        "Per round: how many times the draw window was missed and moved, and the",
+        "penalty pot built from the nodes slashed for it (paid to the winner)."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "round_id",
+            "type": "u64"
+          },
+          {
+            "name": "count",
+            "type": "u32"
+          },
+          {
+            "name": "penalty_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "paid_lamports",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
       "name": "SeedCommitted",
       "type": {
         "kind": "struct",
@@ -1994,6 +3100,37 @@
                 32
               ]
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "SlashRecord",
+      "docs": [
+        "One per (round, node) slash; its existence prevents a second slash for the same miss."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "round_id",
+            "type": "u64"
+          },
+          {
+            "name": "operator",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "slot",
+            "type": "u64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
           }
         ]
       }
@@ -2054,6 +3191,30 @@
           {
             "name": "bump",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "WindowMissed",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "round_id",
+            "type": "u64"
+          },
+          {
+            "name": "attempt",
+            "type": "u32"
+          },
+          {
+            "name": "missed_end_slot",
+            "type": "u64"
+          },
+          {
+            "name": "reschedule_count",
+            "type": "u32"
           }
         ]
       }
